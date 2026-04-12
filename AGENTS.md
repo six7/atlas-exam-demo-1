@@ -102,11 +102,7 @@ export default function MyFeature() {
 }
 ```
 
-4. Add to `app/(shell)/prototypes/[id]/PrototypeRenderer.tsx`:
-
-```tsx
-"my-feature": dynamic(() => import("@/src/prototypes/my-feature/index")),
-```
+That's it. The prototype is automatically discovered at runtime — no other files need to be changed.
 
 ---
 

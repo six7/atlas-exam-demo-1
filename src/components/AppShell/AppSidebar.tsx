@@ -51,8 +51,8 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       {/* ── Logo ── */}
-      <SidebarHeader className="h-14 justify-center px-4">
-        <Link href="/" className="flex items-center gap-2.5 group">
+      <SidebarHeader className="h-14 justify-center px-4 group-data-[collapsible=icon]:px-0">
+        <Link href="/" className="flex items-center gap-2.5 group group-data-[collapsible=icon]:justify-center">
           <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white text-xs font-bold"
             style={{ background: "var(--color-brand)" }}
@@ -60,7 +60,7 @@ export function AppSidebar() {
             A
           </div>
           <span
-            className="text-sm font-semibold tracking-tight truncate"
+            className="text-sm font-semibold tracking-tight truncate group-data-[collapsible=icon]:hidden"
             style={{ color: "var(--color-text-primary)" }}
           >
             Atlas
@@ -118,11 +118,11 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
                   size="lg"
-                  className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
                   tooltip="Account"
                 >
                   <Avatar name="Sam Wilson" />
-                  <div className="flex flex-col min-w-0 text-left leading-tight">
+                  <div className="flex flex-col min-w-0 text-left leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
                       Sam Wilson
                     </span>

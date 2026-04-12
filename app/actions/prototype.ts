@@ -65,21 +65,6 @@ export async function createPrototype(formData: FormData) {
   });
   fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + "\n");
 
-  // 3. Update PrototypeRenderer.tsx to include the new dynamic import
-  const rendererPath = path.join(
-    root,
-    "app",
-    "(shell)",
-    "prototypes",
-    "[id]",
-    "PrototypeRenderer.tsx"
-  );
-  let renderer = fs.readFileSync(rendererPath, "utf-8");
-  const anchor = "// Explicit map — updated automatically by the createPrototype server action\nconst components: Record<string, React.ComponentType> = {";
-  const newEntry = `  "${id}": dynamic(() => import("@/src/prototypes/${id}/index")),\n`;
-  renderer = renderer.replace(anchor, anchor + "\n" + newEntry.trimEnd());
-  fs.writeFileSync(rendererPath, renderer);
-
   redirect(`/prototypes/${id}`);
 }
 

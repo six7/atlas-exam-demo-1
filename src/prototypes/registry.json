@@ -13,6 +13,13 @@
       "author": "Sam Wilson",
       "description": "Redesigned dashboard with activity feed and quick actions.",
       "createdAt": "2026-04-12"
+    },
+    {
+      "id": "list-of-projects",
+      "name": "List of projects",
+      "author": "Jan Six",
+      "description": "Exploring projects",
+      "createdAt": "2026-04-12"
     }
   ]
 }
