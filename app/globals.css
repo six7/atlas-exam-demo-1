@@ -1,26 +1,137 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ── Font CSS vars: Next.js sets these on <html> at runtime;
+      this :root fallback makes them available in Storybook too ── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --font-poppins: "Poppins", sans-serif;
+  --font-geist-mono: "Geist Mono", monospace;
+
+  /* Sidebar vars — mapped to our design tokens */
+  --sidebar: var(--color-bg-subtle);
+  --sidebar-foreground: var(--color-text-secondary);
+  --sidebar-primary: var(--color-brand);
+  --sidebar-primary-foreground: var(--color-text-inverse);
+  --sidebar-accent: var(--color-bg-muted);
+  --sidebar-accent-foreground: var(--color-text-primary);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--color-border-focus);
 }
 
+/* ── Map design tokens → shadcn semantic CSS variables ── */
+:root {
+  --background: var(--color-bg);
+  --foreground: var(--color-text-primary);
+
+  --card: var(--color-bg);
+  --card-foreground: var(--color-text-primary);
+
+  --popover: var(--color-bg);
+  --popover-foreground: var(--color-text-primary);
+
+  --primary: var(--color-brand);
+  --primary-foreground: var(--color-text-inverse);
+
+  --secondary: var(--color-bg-muted);
+  --secondary-foreground: var(--color-text-secondary);
+
+  --muted: var(--color-bg-subtle);
+  --muted-foreground: var(--color-text-tertiary);
+
+  --accent: var(--color-bg-subtle);
+  --accent-foreground: var(--color-text-primary);
+
+  --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-text-inverse);
+
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-border-focus);
+
+  --radius: var(--radius-md);
+}
+
+/* ── Tailwind v4: expose semantic vars as utility classes ── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Typography from tokens */
+  --font-sans: var(--font-poppins), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Radius from tokens */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── Dark mode token overrides ── */
+.dark {
+  --color-bg: #0A1A02;
+  --color-bg-subtle: #111E05;
+  --color-bg-muted: #1A2B08;
+  --color-bg-brand: #152800;
+  --color-bg-inverse: #E8F0DC;
+
+  --color-text-primary: #E8F0DC;
+  --color-text-secondary: #B8CCAA;
+  --color-text-tertiary: #7A9468;
+  --color-text-brand: #91EB4C;
+  --color-text-disabled: #3D5230;
+  --color-text-inverse: #162F02;
+
+  --color-border: #243B10;
+  --color-border-strong: #3A5A1A;
+  --color-border-focus: #91EB4C;
+
+  --color-brand: #73BF33;
+  --color-brand-hover: #91EB4C;
+  --color-danger: #D4604A;
+  --color-success: #5FAF47;
+  --color-warning: #D4943A;
+}
+
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }

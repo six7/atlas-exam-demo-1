@@ -1,64 +1,146 @@
-import Image from "next/image";
+import fs from "fs";
+import path from "path";
+import Link from "next/link";
+import { ArrowRight, Layers } from "lucide-react";
+import { NewPrototypeForm } from "@/app/(shell)/prototypes/NewPrototypeForm";
+import { ThemeToggle } from "@/src/components/AppShell/ThemeToggle";
+import type { Registry } from "@/app/(shell)/prototypes/types";
 
-export default function Home() {
+function getRegistry(): Registry {
+  const filePath = path.join(process.cwd(), "src", "prototypes", "registry.json");
+  return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+}
+
+export default function HomePage() {
+  const registry = getRegistry();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div
+      className="min-h-screen"
+      style={{ background: "var(--color-bg)", color: "var(--color-text-primary)" }}
+    >
+      {/* Top bar */}
+      <header
+        className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b px-6"
+        style={{
+          background: "var(--color-bg)",
+          borderColor: "var(--color-border)",
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-md text-white text-xs font-bold"
+            style={{ background: "var(--color-brand)" }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            A
+          </div>
+          <span
+            className="text-sm font-semibold tracking-tight"
+            style={{ color: "var(--color-text-primary)" }}
           >
-            Documentation
-          </a>
+            Atlas
+          </span>
         </div>
+
+        <div className="ml-auto flex items-center gap-3">
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="mx-auto max-w-5xl px-6 py-12">
+        <div className="flex items-start justify-between gap-4 mb-10">
+          <div>
+            <h1
+              className="text-2xl font-semibold tracking-tight"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              Prototypes
+            </h1>
+            <p className="mt-1.5 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+              Each prototype is isolated. Pick one to continue, or create a new one.
+            </p>
+          </div>
+          <NewPrototypeForm />
+        </div>
+
+        {registry.prototypes.length === 0 ? (
+          <div
+            className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed py-24 text-center"
+            style={{
+              background: "var(--color-bg-subtle)",
+              borderColor: "var(--color-border)",
+            }}
+          >
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-xl"
+              style={{ background: "var(--color-bg-muted)", color: "var(--color-text-tertiary)" }}
+            >
+              <Layers size={22} />
+            </div>
+            <div>
+              <div className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+                No prototypes yet
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                Create the first one to get started.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {registry.prototypes.map((proto) => (
+              <Link
+                key={proto.id}
+                href={`/prototypes/${proto.id}`}
+                className="group flex flex-col gap-4 rounded-lg border p-5 transition-colors"
+                style={{
+                  background: "var(--color-bg)",
+                  borderColor: "var(--color-border)",
+                }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div
+                    className="flex h-9 w-9 items-center justify-center rounded-md"
+                    style={{
+                      background: "var(--color-bg-brand)",
+                      color: "var(--color-brand)",
+                    }}
+                  >
+                    <Layers size={18} />
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+                    style={{ color: "var(--color-text-tertiary)" }}
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <div className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                    {proto.name}
+                  </div>
+                  {proto.description && (
+                    <div
+                      className="mt-1 text-xs leading-relaxed line-clamp-2"
+                      style={{ color: "var(--color-text-tertiary)" }}
+                    >
+                      {proto.description}
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className="flex items-center justify-between pt-3 border-t text-xs"
+                  style={{ borderColor: "var(--color-border)", color: "var(--color-text-tertiary)" }}
+                >
+                  <span>{proto.author}</span>
+                  <span>{proto.createdAt}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

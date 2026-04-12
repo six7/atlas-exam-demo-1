@@ -1,0 +1,18 @@
+{
+  "prototypes": [
+    {
+      "id": "onboarding-flow",
+      "name": "Onboarding Flow",
+      "author": "Sam Wilson",
+      "description": "Multi-step onboarding for new Atlas workspace users.",
+      "createdAt": "2026-04-12"
+    },
+    {
+      "id": "dashboard-v2",
+      "name": "Dashboard v2",
+      "author": "Sam Wilson",
+      "description": "Redesigned dashboard with activity feed and quick actions.",
+      "createdAt": "2026-04-12"
+    }
+  ]
+}
