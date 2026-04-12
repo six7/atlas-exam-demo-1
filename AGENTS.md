@@ -144,11 +144,12 @@ All shared components are in `src/components/`. Use them freely in your prototyp
 
 | Component | Import |
 |-----------|--------|
-| Button (primary, secondary, ghost) | `@/src/components/Button/Button` |
-| Card (header/body/footer slots) | `@/src/components/Card/Card` |
-| Input (with label + error state) | `@/src/components/Input/Input` |
-| DropdownMenu | `@/src/components/DropdownMenu/DropdownMenu` |
-| shadcn primitives | `@/src/components/ui/[name]` |
+| Button (default, secondary, ghost, outline, destructive) | `@/src/components/ui/button` |
+| Card (CardHeader, CardContent, CardFooter) | `@/src/components/ui/card` |
+| InputField (with label + error state) | `@/src/components/ui/input-field` |
+| Input (bare shadcn input) | `@/src/components/ui/input` |
+| DropdownMenu and sub-components | `@/src/components/ui/dropdown-menu` |
+| Dialog, Sheet, Tooltip, Separator, Skeleton | `@/src/components/ui/[name]` |
 
 If you need a component that doesn't exist, either create it inside your prototype folder or (if it's broadly useful) propose adding it to the shared layer and build it in `src/components/`.
 
@@ -270,8 +271,8 @@ After adding, apply our design tokens by ensuring the component uses `border-bor
 |------|-------------|
 | `app/tokens.css` | Shared — discuss changes with the team |
 | `app/globals.css` | Shared — discuss changes with the team |
-| `src/components/ui/` | shadcn primitives — do not edit directly |
-| `src/components/Button/`, `Card/`, `Input/`, `DropdownMenu/`, `AppShell/` | Shared — discuss changes |
+| `src/components/ui/` | shadcn primitives + InputField — do not edit directly |
+| `src/components/AppShell/` | Shared shell components — discuss changes |
 | `src/prototypes/[your-id]/` | Yours — edit freely |
 | `src/prototypes/registry.json` | Auto-managed by the prototype creator |
 | `DESIGN.md` | Brand guidelines — reference before building |
