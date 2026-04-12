@@ -1,5 +1,5 @@
 import { Plus, FolderKanban } from "lucide-react";
-import { Button } from "@/src/components/Button/Button";
+import { Button } from "@/src/components/ui/button";
 
 const projects = [
   {
@@ -46,7 +46,7 @@ export default function ProjectsPage() {
             Workspaces where Atlas tokens and components live.
           </p>
         </div>
-        <Button variant="primary" size="sm">
+        <Button variant="default" size="sm">
           <Plus size={14} className="mr-1.5" /> New project
         </Button>
       </div>

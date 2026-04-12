@@ -1,5 +1,5 @@
-import { Input } from "@/src/components/Input/Input";
-import { Button } from "@/src/components/Button/Button";
+import { InputField } from "@/src/components/ui/input-field";
+import { Button } from "@/src/components/ui/button";
 
 function SettingsSection({
   title,
@@ -72,10 +72,10 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="First name" defaultValue="Sam" />
-              <Input label="Last name" defaultValue="Wilson" />
+              <InputField label="First name" defaultValue="Sam" />
+              <InputField label="Last name" defaultValue="Wilson" />
             </div>
-            <Input label="Email" defaultValue="sam@atlas.design" />
+            <InputField label="Email" defaultValue="sam@atlas.design" />
           </SettingsSection>
         </div>
 
@@ -84,8 +84,8 @@ export default function SettingsPage() {
             title="Workspace"
             description="Settings that apply to your entire Atlas workspace."
           >
-            <Input label="Workspace name" defaultValue="Atlas Design System" />
-            <Input label="Workspace slug" defaultValue="atlas-design" />
+            <InputField label="Workspace name" defaultValue="Atlas Design System" />
+            <InputField label="Workspace slug" defaultValue="atlas-design" />
           </SettingsSection>
         </div>
 
@@ -123,7 +123,7 @@ export default function SettingsPage() {
 
       <div className="flex justify-end gap-3 pt-4 border-t border-border">
         <Button variant="ghost">Cancel</Button>
-        <Button variant="primary">Save changes</Button>
+        <Button variant="default">Save changes</Button>
       </div>
     </div>
   );

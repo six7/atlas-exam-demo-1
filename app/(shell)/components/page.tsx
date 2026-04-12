@@ -1,9 +1,17 @@
 "use client";
 
-import { Button } from "@/src/components/Button/Button";
-import { Card } from "@/src/components/Card/Card";
-import { Input } from "@/src/components/Input/Input";
-import { DropdownMenu } from "@/src/components/DropdownMenu/DropdownMenu";
+import { Button } from "@/src/components/ui/button";
+import { Card, CardHeader, CardContent, CardFooter } from "@/src/components/ui/card";
+import { InputField } from "@/src/components/ui/input-field";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuShortcut,
+} from "@/src/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 
 export default function ComponentsPage() {
@@ -33,13 +41,13 @@ export default function ComponentsPage() {
 
       <Section title="Button">
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="primary">Primary</Button>
+          <Button>Primary</Button>
           <Button variant="secondary">Secondary</Button>
           <Button variant="ghost">Ghost</Button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button size="sm">Small</Button>
-          <Button size="md">Medium</Button>
+          <Button size="default">Default</Button>
           <Button size="lg">Large</Button>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -49,91 +57,83 @@ export default function ComponentsPage() {
 
       <Section title="Input">
         <div className="flex flex-col gap-4 max-w-sm">
-          <Input label="Default" placeholder="Enter text..." />
-          <Input
+          <InputField label="Default" placeholder="Enter text..." />
+          <InputField
             label="With error"
             defaultValue="bad input"
             error="This field is required."
           />
-          <Input label="Disabled" defaultValue="Read only" disabled />
+          <InputField label="Disabled" defaultValue="Read only" disabled />
         </div>
       </Section>
 
       <Section title="Card">
         <div className="flex flex-col gap-4">
-          <Card>Body-only card with some content inside.</Card>
-          <Card
-            header={
-              <h3 className="font-semibold text-foreground">Card with Header</h3>
-            }
-          >
-            <p className="text-sm text-muted-foreground">
-              This card has a header slot and a body.
-            </p>
+          <Card>
+            <CardContent>Body-only card with some content inside.</CardContent>
           </Card>
-          <Card
-            header={
+          <Card>
+            <CardHeader>
+              <h3 className="font-semibold text-foreground">Card with Header</h3>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                This card has a header slot and a body.
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">Full Card</h3>
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                   Active
                 </span>
               </div>
-            }
-            footer={
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm">
-                  Cancel
-                </Button>
-                <Button size="sm">Save</Button>
-              </div>
-            }
-          >
-            <p className="text-sm text-muted-foreground">
-              This card uses all three slots: header, body, and footer.
-            </p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                This card uses all three slots: header, body, and footer.
+              </p>
+            </CardContent>
+            <CardFooter className="justify-end gap-2">
+              <Button variant="ghost" size="sm">Cancel</Button>
+              <Button size="sm">Save</Button>
+            </CardFooter>
           </Card>
         </div>
       </Section>
 
       <Section title="Dropdown Menu">
         <div className="flex flex-wrap gap-4">
-          <DropdownMenu
-            trigger={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="secondary">
                 My Account <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
-            }
-            groups={[
-              {
-                label: "Account",
-                items: [
-                  { label: "Profile", shortcut: "⇧⌘P" },
-                  { label: "Billing", shortcut: "⌘B" },
-                  { label: "Settings", shortcut: "⌘S" },
-                ],
-              },
-              {
-                items: [{ label: "Sign out", shortcut: "⇧⌘Q" }],
-              },
-            ]}
-          />
-          <DropdownMenu
-            trigger={
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Account</DropdownMenuLabel>
+              <DropdownMenuItem>Profile <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut></DropdownMenuItem>
+              <DropdownMenuItem>Billing <DropdownMenuShortcut>⌘B</DropdownMenuShortcut></DropdownMenuItem>
+              <DropdownMenuItem>Settings <DropdownMenuShortcut>⌘S</DropdownMenuShortcut></DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Sign out <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut></DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button variant="ghost">
                 Actions <ChevronDown className="ml-1 h-4 w-4" />
               </Button>
-            }
-            groups={[
-              {
-                items: [
-                  { label: "Edit", shortcut: "⌘E" },
-                  { label: "Duplicate", shortcut: "⌘D" },
-                  { label: "Delete", disabled: true },
-                ],
-              },
-            ]}
-          />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem>Edit <DropdownMenuShortcut>⌘E</DropdownMenuShortcut></DropdownMenuItem>
+              <DropdownMenuItem>Duplicate <DropdownMenuShortcut>⌘D</DropdownMenuShortcut></DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled>Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </Section>
     </div>

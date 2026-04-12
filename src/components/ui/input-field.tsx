@@ -1,13 +1,13 @@
 import { InputHTMLAttributes, useId } from "react";
-import { Input as ShadInput } from "@/src/components/ui/input";
+import { Input } from "./input";
 import { cn } from "@/src/lib/utils";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
 }
 
-export function Input({ label, error, className, id: idProp, ...props }: InputProps) {
+export function InputField({ label, error, className, id: idProp, ...props }: InputFieldProps) {
   const generatedId = useId();
   const id = idProp ?? generatedId;
 
@@ -18,12 +18,9 @@ export function Input({ label, error, className, id: idProp, ...props }: InputPr
           {label}
         </label>
       )}
-      <ShadInput
+      <Input
         id={id}
-        className={cn(
-          error && "border-destructive focus-visible:ring-destructive",
-          className
-        )}
+        className={cn(error && "border-destructive focus-visible:ring-destructive", className)}
         aria-describedby={error ? `${id}-error` : undefined}
         aria-invalid={error ? true : undefined}
         {...props}

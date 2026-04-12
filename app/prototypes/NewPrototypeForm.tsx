@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { createPrototype } from "@/app/actions/prototype";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/src/components/ui/dialog";
 
 export function NewPrototypeForm() {
   const [open, setOpen] = useState(false);
@@ -18,11 +25,17 @@ export function NewPrototypeForm() {
     try {
       await createPrototype(formData);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      if (!message.includes("NEXT_REDIRECT")) {
-        setError(message);
-        setPending(false);
+      // Next.js redirect() throws with digest "NEXT_REDIRECT;..." — let it propagate
+      if (
+        err instanceof Error &&
+        "digest" in err &&
+        typeof (err as { digest?: string }).digest === "string" &&
+        (err as { digest: string }).digest.includes("NEXT_REDIRECT")
+      ) {
+        throw err;
       }
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setPending(false);
     }
   }
 
@@ -43,80 +56,55 @@ export function NewPrototypeForm() {
         New prototype
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0"
-            style={{ background: "rgba(10,26,2,0.5)" }}
-            onClick={() => setOpen(false)}
-          />
-
-          {/* Dialog */}
-          <div
-            className="relative z-10 w-full max-w-md rounded-xl border border-border shadow-lg p-6 flex flex-col gap-5"
-            style={{ background: "var(--color-bg)" }}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h2
-                  className="text-base font-semibold"
-                  style={{ color: "var(--color-text-primary)" }}
-                >
-                  New prototype
-                </h2>
-                <p className="text-xs mt-0.5" style={{ color: "var(--color-text-tertiary)" }}>
-                  Creates an isolated folder in{" "}
-                  <code
-                    className="font-mono px-1 rounded"
-                    style={{ background: "var(--color-bg-muted)" }}
-                  >
-                    src/prototypes/
-                  </code>
-                </p>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-md p-1"
-                style={{ color: "var(--color-text-tertiary)" }}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md" style={{ background: "var(--color-bg)" }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: "var(--color-text-primary)" }}>
+              New prototype
+            </DialogTitle>
+            <DialogDescription style={{ color: "var(--color-text-tertiary)" }}>
+              Creates an isolated folder in{" "}
+              <code
+                className="font-mono px-1 rounded text-xs"
+                style={{ background: "var(--color-bg-muted)" }}
               >
-                <X size={16} />
+                src/prototypes/
+              </code>
+            </DialogDescription>
+          </DialogHeader>
+
+          <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4 mt-2">
+            <Field label="Prototype name" name="name" placeholder="Login redesign" required />
+            <Field label="Your name" name="author" placeholder="Sam Wilson" />
+            <Field label="Description" name="description" placeholder="What are you exploring?" />
+
+            {error && (
+              <p className="text-xs" style={{ color: "var(--color-danger)" }}>
+                {error}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-md px-3 py-2 text-sm font-medium border border-border transition-colors"
+                style={{ color: "var(--color-text-secondary)", background: "var(--color-bg)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+                style={{ background: "var(--color-brand)" }}
+              >
+                {pending ? "Creating…" : "Create prototype"}
               </button>
             </div>
-
-            <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <Field label="Prototype name" name="name" placeholder="Login redesign" required />
-              <Field label="Your name" name="author" placeholder="Sam Wilson" />
-              <Field label="Description" name="description" placeholder="What are you exploring?" />
-
-              {error && (
-                <p className="text-xs" style={{ color: "var(--color-danger)" }}>
-                  {error}
-                </p>
-              )}
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-2 text-sm font-medium border border-border transition-colors"
-                  style={{ color: "var(--color-text-secondary)", background: "var(--color-bg)" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-                  style={{ background: "var(--color-brand)" }}
-                >
-                  {pending ? "Creating…" : "Create prototype"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

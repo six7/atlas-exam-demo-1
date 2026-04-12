@@ -1,15 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Input } from "./Input";
+import { InputField } from "./input-field";
 
-const meta: Meta<typeof Input> = {
-  title: "Components/Input",
-  component: Input,
+const meta: Meta<typeof InputField> = {
+  title: "Components/InputField",
+  component: InputField,
   tags: ["autodocs"],
   args: { placeholder: "Enter text..." },
 };
 
 export default meta;
-type Story = StoryObj<typeof Input>;
+type Story = StoryObj<typeof InputField>;
 
 export const Default: Story = {};
 
@@ -27,24 +27,16 @@ export const WithError: Story = {
 };
 
 export const Disabled: Story = {
-  args: {
-    label: "Username",
-    defaultValue: "johndoe",
-    disabled: true,
-  },
+  args: { label: "Username", defaultValue: "johndoe", disabled: true },
 };
 
 export const AllStates: Story = {
   render: () => (
     <div className="flex flex-col gap-6 w-72">
-      <Input label="Default" placeholder="Enter text..." />
-      <Input label="With value" defaultValue="Hello world" />
-      <Input
-        label="With error"
-        defaultValue="bad input"
-        error="This field is invalid."
-      />
-      <Input label="Disabled" defaultValue="Can't touch this" disabled />
+      <InputField label="Default" placeholder="Enter text..." />
+      <InputField label="With value" defaultValue="Hello world" />
+      <InputField label="With error" defaultValue="bad input" error="This field is invalid." />
+      <InputField label="Disabled" defaultValue="Can't touch this" disabled />
     </div>
   ),
 };
