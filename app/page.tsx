@@ -2,9 +2,9 @@ import fs from "fs";
 import path from "path";
 import Link from "next/link";
 import { ArrowRight, Layers } from "lucide-react";
-import { NewPrototypeForm } from "@/app/(shell)/prototypes/NewPrototypeForm";
+import { NewPrototypeForm } from "@/app/prototypes/NewPrototypeForm";
 import { ThemeToggle } from "@/src/components/AppShell/ThemeToggle";
-import type { Registry } from "@/app/(shell)/prototypes/types";
+import type { Registry } from "@/app/prototypes/types";
 
 function getRegistry(): Registry {
   const filePath = path.join(process.cwd(), "src", "prototypes", "registry.json");
@@ -28,12 +28,11 @@ export default function HomePage() {
         }}
       >
         <div className="flex items-center gap-2.5">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-md text-white text-xs font-bold"
-            style={{ background: "var(--color-brand)" }}
-          >
-            A
-          </div>
+          <img
+            src="/atlas-logo.png"
+            alt="Atlas"
+            className="h-7 w-7 rounded-md object-cover"
+          />
           <span
             className="text-sm font-semibold tracking-tight"
             style={{ color: "var(--color-text-primary)" }}
@@ -48,7 +47,7 @@ export default function HomePage() {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-5xl px-6 py-12">
+      <main className="mx-auto max-w-5xl px-6 pt-12 pb-24">
         <div className="flex items-start justify-between gap-4 mb-10">
           <div>
             <h1

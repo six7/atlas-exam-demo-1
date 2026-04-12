@@ -33,17 +33,19 @@ src/
   components/
     ui/                         ← shadcn primitives (shared, don't edit)
     Button/, Card/, Input/      ← Atlas wrappers (shared)
-    AppShell/                   ← shell components (shared)
+    AppShell/                   ← shell components (shared, opt-in)
 
 app/
-  page.tsx                      ← prototype picker / home (outside shell, lists all prototypes)
+  page.tsx                      ← prototype picker / home (outside shell)
+  prototypes/
+    [id]/
+      page.tsx                  ← renders the chosen prototype full-screen
+      PrototypeRenderer.tsx     ← dynamic lazy-loads from src/prototypes/[id]/index
   (shell)/
-    prototypes/
-      [id]/
-        page.tsx                ← renders the chosen prototype (inside app shell)
-        PrototypeRenderer.tsx   ← maps IDs → dynamic imports (auto-updated)
-    actions/
-      prototype.ts              ← server action: creates new prototypes
+    layout.tsx                  ← app shell layout (Projects, Components, Tokens, Settings)
+    projects/, components/, tokens/, settings/
+  actions/
+    prototype.ts                ← server action: creates new prototypes
 ```
 
 ### The rule: one folder per person
@@ -67,7 +69,6 @@ app/
 This automatically:
 - Creates `src/prototypes/[slug]/index.tsx` with a scaffold component
 - Adds an entry to `src/prototypes/registry.json`
-- Registers the prototype in `app/(shell)/prototypes/[id]/PrototypeRenderer.tsx`
 - Redirects you to the new prototype page
 
 The dev server will hot-reload the new file immediately.
@@ -78,13 +79,24 @@ The dev server will hot-reload the new file immediately.
 2. Create `src/prototypes/my-feature/index.tsx`:
 
 ```tsx
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
 export default function MyFeature() {
   return (
-    <div className="flex flex-col gap-6 max-w-4xl">
-      <h1 className="text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>
-        My Feature
-      </h1>
-      {/* Build here */}
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--color-bg)" }}>
+      <div className="px-6 pt-5">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+          <ArrowLeft size={13} />
+          All prototypes
+        </Link>
+      </div>
+      <main className="flex-1 p-6">
+        <h1 className="text-xl font-semibold" style={{ color: "var(--color-text-primary)" }}>
+          My Feature
+        </h1>
+        {/* Build here */}
+      </main>
     </div>
   );
 }
@@ -179,16 +191,40 @@ The Storybook toolbar has a **Light / Dark** theme switch. Stories automatically
 
 ---
 
-## Architecture: Picker Outside the Shell
+## Architecture: Opt-In Shell
 
-The prototype picker at `/` is a **standalone page** — it has no sidebar. It shows the full list of prototypes with the Atlas logo and a theme toggle.
+Prototypes live at `/prototypes/[id]` **outside** the `(shell)` route group. They render full-screen — no sidebar, no header imposed on them.
 
-When you pick a prototype you navigate to `/prototypes/[id]`, which **enters the app shell** (sidebar + header). The header shows "← All prototypes" to return to the picker.
+Each prototype controls its own layout:
 
-This separation is intentional:
-- The picker is neutral — it belongs to no prototype
-- Picking a prototype "activates" the shell for that context
-- Multiple people can share `/` links; no one's prototype is the default
+- **No shell (default)** — the scaffold includes a minimal back-link to `/`. The prototype fills the full viewport however it wants.
+- **With Atlas shell** — import `SidebarProvider`, `AppSidebar`, `SidebarInset`, and `AppHeader` from the shared AppShell components and compose them yourself. See `src/prototypes/dashboard-v2/index.tsx` as a reference.
+
+```tsx
+// Prototype WITH the Atlas shell (opt-in)
+"use client";
+import { SidebarProvider, SidebarInset } from "@/src/components/ui/sidebar";
+import { AppSidebar } from "@/src/components/AppShell/AppSidebar";
+import { AppHeader } from "@/src/components/AppShell/AppHeader";
+
+export default function MyShellPrototype() {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <AppSidebar />
+      <SidebarInset>
+        <AppHeader />
+        <main className="flex-1 p-6">
+          {/* your content */}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
+```
+
+The `AppHeader` automatically shows "← All prototypes" when the pathname starts with `/prototypes/`, so navigation back to the picker is built in.
+
+The standalone prototype picker at `/` is always shell-free — it belongs to no prototype.
 
 ---
 

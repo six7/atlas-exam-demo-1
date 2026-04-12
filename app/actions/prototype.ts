@@ -32,21 +32,43 @@ export async function createPrototype(formData: FormData) {
   fs.mkdirSync(protoDir, { recursive: true });
   fs.writeFileSync(
     path.join(protoDir, "index.tsx"),
-    `export default function ${toPascalCase(id)}() {
+    `import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
+export default function ${toPascalCase(id)}() {
   return (
-    <div className="flex flex-col gap-6 max-w-4xl">
-      <div>
-        <h1
-          className="text-xl font-semibold"
-          style={{ color: "var(--color-text-primary)" }}
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "var(--color-bg)" }}
+    >
+      {/* Minimal back nav — remove if you add your own shell */}
+      <div className="px-6 pt-5">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-xs transition-colors"
+          style={{ color: "var(--color-text-tertiary)" }}
         >
-          ${name}
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
-          ${description || "Your prototype starts here."}
-        </p>
+          <ArrowLeft size={13} />
+          All prototypes
+        </Link>
       </div>
-      {/* Build your prototype below */}
+
+      <main className="flex-1 p-6">
+        <div className="flex flex-col gap-6 max-w-4xl">
+          <div>
+            <h1
+              className="text-xl font-semibold"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              ${name}
+            </h1>
+            <p className="mt-1 text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+              ${description || "Your prototype starts here."}
+            </p>
+          </div>
+          {/* Build your prototype below */}
+        </div>
+      </main>
     </div>
   );
 }

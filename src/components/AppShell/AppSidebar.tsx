@@ -53,12 +53,11 @@ export function AppSidebar() {
       {/* ── Logo ── */}
       <SidebarHeader className="h-14 justify-center px-4 group-data-[collapsible=icon]:px-0">
         <Link href="/" className="flex items-center gap-2.5 group group-data-[collapsible=icon]:justify-center">
-          <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white text-xs font-bold"
-            style={{ background: "var(--color-brand)" }}
-          >
-            A
-          </div>
+          <img
+            src="/atlas-logo.png"
+            alt="Atlas"
+            className="h-7 w-7 shrink-0 rounded-md object-cover"
+          />
           <span
             className="text-sm font-semibold tracking-tight truncate group-data-[collapsible=icon]:hidden"
             style={{ color: "var(--color-text-primary)" }}
@@ -121,13 +120,13 @@ export function AppSidebar() {
                   className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
                   tooltip="Account"
                 >
-                  <Avatar name="Sam Wilson" />
+                  <Avatar name="Maya Keller" src="/avatar-maya.jpg" />
                   <div className="flex flex-col min-w-0 text-left leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
-                      Sam Wilson
+                      Maya Keller
                     </span>
                     <span className="truncate text-xs" style={{ color: "var(--color-text-tertiary)" }}>
-                      sam@atlas.design
+                      maya@atlas.design
                     </span>
                   </div>
                 </SidebarMenuButton>
@@ -147,7 +146,17 @@ export function AppSidebar() {
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, src }: { name: string; src?: string }) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="h-8 w-8 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+
   const initials = name
     .split(" ")
     .map((n) => n[0])
