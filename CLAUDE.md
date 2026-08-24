@@ -87,8 +87,13 @@ So `public/feedback.js` has hard constraints — no framework, no build step, no
 imports. It runs inside arbitrary prototypes on arbitrary React versions, in a
 shadow root. Do not "modernise" it into a React component.
 
-Press **C** in a prototype to attach a comment to a DOM element. Comments post
-through `app/api/feedback/route.ts`, never straight from the client.
+Press **C** in a prototype to attach a comment to a DOM element; it renders as
+a pin on the page. Comments post through `app/api/feedback/route.ts`, never
+straight from the client.
+
+Selectors are generated from the DOM and break when you restructure. Add
+`data-feedback-id="…"` to anything that should keep its pin across edits — the
+overlay checks that attribute first.
 
 Anything that floats above a prototype must carry `data-screenshot-hide`, or it
 will end up in the CI screenshots.

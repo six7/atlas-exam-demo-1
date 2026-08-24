@@ -135,6 +135,17 @@ improvements without being rebuilt. That is why it is plain dependency-free JS
 in a shadow root rather than a React component — it has to run inside arbitrary
 prototypes built from arbitrary branches.
 
+**Make anchors stable where feedback matters.** A comment's selector is
+generated from the DOM (`body > div:nth-of-type(2) > main > …`), so it breaks
+when you restructure around it — the comment survives, shown as "(gone)" with
+the element's captured label, but the pin disappears. The overlay checks
+`data-feedback-id` first, so give anything you expect sustained feedback on a
+stable handle:
+
+```tsx
+<section data-feedback-id="activity-feed">
+```
+
 Chrome that should not appear in CI screenshots is marked
 `data-screenshot-hide`. Add that attribute to anything you introduce that
 floats above a prototype.
@@ -166,7 +177,9 @@ new-style keys must be sent on the `apikey` header only, never as
 `supabase-js` handles it for you.
 
 See `PROGRESS.md` for setup and validation steps, and `.env.example` for the
-variables.
+variables. `docs/prototype-guide.html` is the version to hand to people who
+just want to use the thing, and `PROMPT.md` is a spec for rebuilding this
+system in another repo.
 
 ---
 
