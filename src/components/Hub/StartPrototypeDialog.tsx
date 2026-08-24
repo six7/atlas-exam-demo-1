@@ -12,7 +12,8 @@ import {
 } from "@/src/components/ui/dialog";
 import {
   buildPrompt,
-  claudeDeepLink,
+  claudeAppDeepLink,
+  claudeCliDeepLink,
   cloneCommand,
   copilotDeepLink,
   slugify,
@@ -28,6 +29,9 @@ interface Tool {
   deepLinkLabel: string;
   /** What the deep link does and does not do — stated, not implied. */
   deepLinkNote: string;
+  /** A second link where the tool offers a meaningfully different surface. */
+  altLink?: (repo: string, prompt: string) => string;
+  altLabel?: string;
   launch: string;
   finish: string;
 }
@@ -36,12 +40,16 @@ const TOOLS: Tool[] = [
   {
     id: "claude",
     label: "Claude Code",
-    deepLink: claudeDeepLink,
-    deepLinkLabel: "Open in Claude Code",
+    // The desktop app, not the terminal. `claude://code/new` opens an in-app
+    // Code session; `claude-cli://open` opens a terminal window instead.
+    deepLink: (_repo, prompt) => claudeAppDeepLink(prompt),
+    deepLinkLabel: "Open in the Claude app",
     deepLinkNote:
-      "Opens a session in your existing clone with the prompt filled in. It does not clone — if you have never run claude in this repo, use the commands instead.",
+      "Opens a Code session in the Claude desktop app with the prompt ready. The app asks which folder to work in — a folder from a link is always confirmed first.",
+    altLink: claudeCliDeepLink,
+    altLabel: "Open in a terminal instead",
     launch: "claude",
-    finish: "Paste the prompt and press Enter.",
+    finish: "Review the prompt and send it.",
   },
   {
     id: "copilot",
@@ -68,17 +76,18 @@ export function StartPrototypeDialog({ repo }: { repo: string }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [author, setAuthor] = useState("");
-  const [description, setDescription] = useState("");
+  const [brief, setBrief] = useState("");
   const [tool, setTool] = useState<ToolId>("claude");
 
   const prompt = useMemo(
-    () => buildPrompt({ name, author, description }),
-    [name, author, description]
+    () => buildPrompt({ name, author, prompt: brief }),
+    [name, author, brief]
   );
 
   const slug = slugify(name);
   const active = TOOLS.find((t) => t.id === tool)!;
-  const ready = name.trim().length > 0 && author.trim().length > 0;
+  const ready =
+    name.trim().length > 0 && author.trim().length > 0 && brief.trim().length > 0;
 
   return (
     <>
@@ -107,8 +116,8 @@ export function StartPrototypeDialog({ repo }: { repo: string }) {
               Start a prototype
             </DialogTitle>
             <DialogDescription style={{ color: "var(--color-text-tertiary)" }}>
-              Prototypes are created in your checkout, not here. Describe it,
-              then hand the prompt to your coding agent.
+              Prototypes are created in your checkout, not here. Say what you
+              want, then hand it to your coding agent.
             </DialogDescription>
           </DialogHeader>
 
@@ -130,12 +139,48 @@ export function StartPrototypeDialog({ repo }: { repo: string }) {
                 placeholder="Sam Wilson"
                 required
               />
-              <Field
-                label="What are you exploring?"
-                value={description}
-                onChange={setDescription}
-                placeholder="Three-tier pricing with an annual toggle."
-              />
+              {/* The one thing only the author can supply. Everything else in
+                  the generated prompt is metadata. */}
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="prototype-brief"
+                  className="text-xs font-medium"
+                  style={{ color: "var(--color-text-secondary)" }}
+                >
+                  What should it do?
+                  <span style={{ color: "var(--color-danger)" }}> *</span>
+                </label>
+                <textarea
+                  id="prototype-brief"
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  rows={5}
+                  placeholder={
+                    "Three pricing tiers with a monthly/annual toggle.\n\n" +
+                    "Annual should default to on and show the saving as a badge. " +
+                    "Compare features in a table below the cards."
+                  }
+                  className="resize-y rounded-md border px-3 py-2 text-sm leading-relaxed outline-none transition-colors"
+                  style={{
+                    background: "var(--color-bg)",
+                    borderColor: "var(--color-border)",
+                    color: "var(--color-text-primary)",
+                  }}
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = "var(--color-brand)")
+                  }
+                  onBlur={(e) =>
+                    (e.currentTarget.style.borderColor = "var(--color-border)")
+                  }
+                />
+                <p
+                  className="text-[11px] leading-relaxed"
+                  style={{ color: "var(--color-text-tertiary)" }}
+                >
+                  Goes to your agent as written. Repo conventions come from
+                  AGENTS.md, so there is no need to repeat them here.
+                </p>
+              </div>
             </div>
 
             {/* ── Tool picker ──────────────────────────────────── */}
@@ -181,9 +226,9 @@ export function StartPrototypeDialog({ repo }: { repo: string }) {
                   color: "var(--color-text-tertiary)",
                 }}
               >
-                Add a name and your name — both end up in{" "}
-                <code className="font-mono">registry.json</code> and on the hub
-                card.
+                Fill in the name, your name, and what it should do. The first
+                two end up in <code className="font-mono">registry.json</code>;
+                the last is the prompt your agent receives.
               </p>
             ) : (
               <div className="flex flex-col gap-4">
@@ -204,6 +249,15 @@ export function StartPrototypeDialog({ repo }: { repo: string }) {
                     >
                       {active.deepLinkNote}
                     </p>
+                    {active.altLink && (
+                      <a
+                        href={active.altLink(repo, prompt)}
+                        className="self-start text-[11px] underline underline-offset-2"
+                        style={{ color: "var(--color-text-brand)" }}
+                      >
+                        {active.altLabel}
+                      </a>
+                    )}
                   </div>
                 )}
 

@@ -185,19 +185,60 @@ system in another repo.
 
 ### Creating a New Prototype
 
+### If you are an agent handed a "New prototype" prompt
+
+The hub's **New prototype** dialog produces a prompt that looks like this:
+
+```
+New prototype for this repo — see AGENTS.md for how to create one.
+
+  id           pricing-page
+  name         Pricing Page
+  author       Jan Six
+  description  Three pricing tiers with a monthly/annual toggle.
+  createdAt    2026-08-24
+
+<what the author wants built, in their words>
+```
+
+It carries the author's brief and the registry metadata, and deliberately
+nothing else — the procedure is here so it does not have to be repeated in
+every prompt. When you receive one:
+
+1. Create `src/prototypes/<id>/index.tsx` with a single default export.
+2. Add exactly those five fields as a new entry in the `prototypes` array of
+   `src/prototypes/registry.json`. Use the values given; do not invent your own
+   id or date.
+3. Build what the brief asks for, using the design tokens in `app/tokens.css`
+   (`var(--color-*)`, never hardcoded hex) and the shared components in
+   `src/components/ui/`.
+4. Run `npm run validate:registry` and make sure it passes.
+5. Run `npm run dev` and confirm `/prototypes/<id>` renders.
+
+Do not write to Supabase, and do not add a row by hand — CI registers the
+prototype when the branch is pushed and deployed.
+
 ### Via the hub (recommended)
 
 1. Open `/` — locally or on the deployed hub, either works.
 2. Click **"New prototype"**.
-3. Fill in name, your name, and what you're exploring.
+3. Fill in the name, your name, and **what it should do** — the last is a free
+   prompt, passed to the agent as written.
 4. Pick your agent: **Claude Code**, **GitHub Copilot**, or **Codex**.
-5. Use the deep link or the clone commands, then paste the generated prompt.
+5. Use the deep link or the clone commands.
 
-The dialog does not create anything. It composes a prompt that tells an agent
-exactly which folder to create and exactly which `registry.json` entry to add,
-including all five required fields. Creating a prototype means writing into a
-git checkout, which is local work — so the hub hands it off rather than
-pretending to do it server-side.
+The dialog does not create anything. It composes the prompt above: your brief
+plus the registry metadata. Creating a prototype means writing into a git
+checkout, which is local work — so the hub hands it off rather than pretending
+to do it server-side.
+
+The deep links differ, and the dialog says so rather than implying otherwise:
+
+| Tool | Opens |
+|---|---|
+| Claude Code | the **desktop app** (`claude://code/new`), with a link for a terminal session (`claude-cli://open`) instead |
+| GitHub Copilot | the **Copilot app** (`ghapp://session/new`), via GitHub's hosted launcher |
+| Codex | no deep link exists — clone commands only |
 
 > This replaced a server action that wrote to the filesystem. It worked locally
 > and failed on every deployment, because a serverless instance has no checkout

@@ -1,15 +1,21 @@
 /**
  * The prompt handed to a coding agent to scaffold a prototype.
  *
- * Creating a prototype means writing two things into a git checkout: a folder
- * and a registry entry. That is local work, so the hub hands it off to whatever
- * agent you already use rather than trying to do it server-side.
+ * Creating a prototype means writing into a git checkout, so the hub hands the
+ * work off rather than doing it server-side.
+ *
+ * The prompt carries the author's own words plus the registry metadata, and
+ * nothing else. Repo conventions — read AGENTS.md, use design tokens, never
+ * write to Supabase — live in AGENTS.md, which every agent reads anyway.
+ * Restating them here made every prompt a wall of boilerplate that buried the
+ * one part only the author could supply.
  */
 
 export interface PrototypeDraft {
   name: string;
   author: string;
-  description: string;
+  /** What the author actually wants built. Their words, passed through. */
+  prompt: string;
 }
 
 export function slugify(name: string): string {
@@ -28,52 +34,70 @@ export function today(now: Date = new Date()): string {
 }
 
 /**
- * Builds the prompt. Every field the registry requires is stated explicitly,
- * so the agent produces an entry that passes `npm run validate:registry`
- * rather than something close enough to look right.
+ * A one-line `description` for the registry, taken from the author's prompt.
+ *
+ * The field is required and shows on the hub card, so it cannot be left to
+ * chance — but asking for it separately duplicated what they just typed.
+ */
+export function descriptionFrom(prompt: string, max = 140): string {
+  const firstLine =
+    prompt
+      .split("\n")
+      .map((line) => line.trim())
+      .find(Boolean) ?? "";
+  const sentence = firstLine.split(/(?<=[.!?])\s/)[0] ?? firstLine;
+  const text = sentence.length > max ? sentence.slice(0, max - 1).trimEnd() + "…" : sentence;
+  return text;
+}
+
+/**
+ * Metadata block plus the author's prompt verbatim.
+ *
+ * Every field the registry requires is named, so the agent can write a valid
+ * entry without being told the schema — but *how* to create a prototype is
+ * AGENTS.md's job, not this string's.
  */
 export function buildPrompt(draft: PrototypeDraft, date = today()): string {
   const slug = slugify(draft.name) || "my-prototype";
-  const entry = JSON.stringify(
-    {
-      id: slug,
-      name: draft.name.trim() || "My Prototype",
-      author: draft.author.trim() || "Your Name",
-      description: draft.description.trim() || "What you're exploring.",
-      createdAt: date,
-    },
-    null,
-    2
-  );
+  const body = draft.prompt.trim();
 
-  return `Create a new prototype in this repo.
+  const meta = [
+    `  id           ${slug}`,
+    `  name         ${draft.name.trim() || slug}`,
+    `  author       ${draft.author.trim() || "Unknown"}`,
+    `  description  ${descriptionFrom(body) || "A new prototype."}`,
+    `  createdAt    ${date}`,
+  ].join("\n");
 
-1. Read AGENTS.md first — it has the conventions for this repo.
+  return `New prototype for this repo — see AGENTS.md for how to create one.
 
-2. Create src/prototypes/${slug}/index.tsx with a single default export.
+${meta}
 
-3. Add exactly this entry to the "prototypes" array in
-   src/prototypes/registry.json:
-
-${entry}
-
-4. Run \`npm run validate:registry\` and make sure it passes. All five fields
-   are required and the folder must match the id.
-
-5. Run \`npm run dev\` and confirm /prototypes/${slug} renders.
-
-Use the design tokens in app/tokens.css (var(--color-*)) — never hardcoded hex,
-so dark mode works. Use the shared components in src/components/ui/ rather than
-rebuilding them.
-
-Do not write to Supabase. The prototype reaches the shared hub on its own when
-I push the branch and CI registers the deployment.`;
+${body || "Describe what you want to build."}`;
 }
 
 /** `claude-cli://` accepts at most 5,000 characters in `q`. */
 export const CLAUDE_PROMPT_LIMIT = 5000;
 
-export function claudeDeepLink(repo: string, prompt: string): string {
+/**
+ * Claude Code in the **desktop app**.
+ *
+ * `claude://code/new` opens an in-app Code session; `claude-cli://open` opens a
+ * terminal instead. The app takes an absolute `folder`, not a repo slug, and a
+ * folder from a link is treated as untrusted anyway — so we send only the
+ * prompt and let the session pick up the working directory.
+ */
+export function claudeAppDeepLink(prompt: string): string {
+  return `claude://code/new?q=${encodeURIComponent(
+    prompt.slice(0, CLAUDE_PROMPT_LIMIT)
+  )}`;
+}
+
+/**
+ * Claude Code in a terminal. Unlike the app link this one can target the repo,
+ * but only resolves to a clone Claude Code has already seen.
+ */
+export function claudeCliDeepLink(repo: string, prompt: string): string {
   return `claude-cli://open?repo=${encodeURIComponent(repo)}&q=${encodeURIComponent(
     prompt.slice(0, CLAUDE_PROMPT_LIMIT)
   )}`;
@@ -84,8 +108,7 @@ export function claudeDeepLink(repo: string, prompt: string): string {
  *
  * Wrapped in GitHub's hosted launcher rather than handed out as a raw
  * `ghapp://` URL: this runs in a web page, and browsers and content filters
- * routinely refuse to render custom schemes as links. The launcher is plain
- * https and forwards to the app.
+ * routinely refuse to render custom schemes as links.
  */
 export function copilotDeepLink(repo: string, prompt: string): string {
   const appLink =
