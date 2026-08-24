@@ -85,7 +85,10 @@
 
     var parts = [];
     var node = el;
-    while (node && node.nodeType === 1 && node !== document.body && parts.length < 6) {
+    // 32 is a safety valve against pathological trees, not a realistic cap —
+    // component libraries routinely wrap a nav item in 8-10 divs, so a short
+    // cap was cutting the walk off before it reached <body>.
+    while (node && node.nodeType === 1 && node !== document.body && parts.length < 32) {
       var part = node.tagName.toLowerCase();
       var parent = node.parentElement;
       if (parent) {
@@ -100,7 +103,10 @@
       parts.unshift(part);
       node = node.parentElement;
     }
-    return "body > " + parts.join(" > ");
+    // Only claim the "body >" anchor when the walk actually reached <body>.
+    // Asserting it after an early stop describes a parent/child relationship
+    // that doesn't exist, so the selector would never match anything.
+    return (node === document.body ? "body > " : "") + parts.join(" > ");
   }
 
   /** Human-readable fallback for when the selector stops matching. */
