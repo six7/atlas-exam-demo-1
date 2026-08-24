@@ -1,0 +1,128 @@
+# Registers a branch that already has a deployment but was never registered.
+#
+# WHY THIS EXISTS
+# ---------------
+# Registration is driven by `deployment_status`, so a branch only appears on
+# the hub once it deploys *after* the workflow landed on the default branch.
+# Every branch that was already open at that point stays invisible until
+# someone pushes to it — which is exactly backwards, since those are the live
+# ones people most want to see.
+#
+# This finds a branch's most recent successful deployment and registers it, so
+# an existing branch can be onboarded without an empty commit.
+#
+# TOOLING VS. DATA
+# -----------------
+# This is precisely the workflow where the trap bites: it exists to onboard
+# branches that were never registered, which are disproportionately likely to
+# predate scripts/*.mjs entirely. It checks out the target branch to read its
+# registry.json, and separately checks out the default branch to run the
+# scripts — never scripts/*.mjs from the target branch's own checkout. Found
+# by running this against a branch from April with tooling built in August:
+# it failed on "Cannot find module .../scripts/validate-registry.mjs" because
+# that file simply did not exist on that commit.
+name: Backfill prototypes
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to register (e.g. prototype/loading-spinners)"
+        required: true
+        type: string
+
+jobs:
+  backfill:
+    name: Register an existing branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: read
+      pull-requests: read
+
+    steps:
+      - name: Find the branch's latest successful deployment
+        id: deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          set -euo pipefail
+
+          # Vercel creates deployments against the commit SHA, so match on the
+          # branch's current head rather than on `ref`.
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${BRANCH}" --jq .sha)"
+          echo "Branch head: $sha"
+
+          url=""
+          for id in $(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${sha}&per_page=20" --jq '.[].id'); do
+            url="$(gh api "repos/${GITHUB_REPOSITORY}/deployments/${id}/statuses" \
+              --jq '[.[] | select(.state=="success") | .environment_url] | first // empty')"
+            [ -n "$url" ] && break
+          done
+
+          if [ -z "$url" ]; then
+            echo "::error::No successful deployment found for $BRANCH at $sha. Push the branch so Vercel deploys it."
+            exit 1
+          fi
+
+          echo "Deployment: $url"
+          {
+            echo "sha=$sha"
+            echo "url=$url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check out that commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.deployment.outputs.sha }}
+
+      # The tooling to run against that data — deliberately a separate
+      # checkout. See "TOOLING VS. DATA" above.
+      - name: Check out current tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .ci-tooling
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .ci-tooling/package-lock.json
+
+      - working-directory: .ci-tooling
+        run: npm ci --legacy-peer-deps
+      - working-directory: .ci-tooling
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate registry
+        run: node .ci-tooling/scripts/validate-registry.mjs
+
+      - name: Resolve commit author
+        id: commit
+        run: echo "author=$(git log -1 --pretty=%an)" >> "$GITHUB_OUTPUT"
+
+      - name: Register
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          PRODUCTION_URL: ${{ vars.REGISTRY_PRODUCTION_URL }}
+          DEPLOYMENT_URL: ${{ steps.deployment.outputs.url }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ inputs.branch }}
+          COMMIT_SHA: ${{ steps.deployment.outputs.sha }}
+          COMMIT_AUTHOR: ${{ steps.commit.outputs.author }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          node .ci-tooling/scripts/register-prototypes.mjs \
+            --deployment-url "$DEPLOYMENT_URL" \
+            --repo "$REPO" \
+            --branch "$BRANCH" \
+            --commit-sha "$COMMIT_SHA" \
+            --author "$COMMIT_AUTHOR" \
+            --default-branch "$DEFAULT_BRANCH" \
+            --production-url "$PRODUCTION_URL"

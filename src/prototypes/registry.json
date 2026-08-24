@@ -1,4 +1,5 @@
 {
+  "$schema": "./registry.schema.json",
   "prototypes": [
     {
       "id": "onboarding-flow",

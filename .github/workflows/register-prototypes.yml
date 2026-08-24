@@ -1,0 +1,142 @@
+# Registers this branch's prototypes in the shared Supabase registry.
+#
+# WHY deployment_status AND NOT pull_request
+# ------------------------------------------
+# Screenshots are taken against the real Vercel preview, so the job cannot run
+# until that deployment exists and is live. On `pull_request` it does not yet:
+# the workflow would fire alongside the build and have no URL to open.
+# `deployment_status` fires *after* Vercel finishes, and carries the URL.
+#
+# BRANCH NAMES
+# ------------
+# `github.event.deployment.ref` is not reliably a branch name. Vercel creates
+# deployments against the commit SHA, so that is what arrives here, and the
+# script resolves it back via the GitHub API (branchForSha in
+# scripts/register-prototypes.mjs).
+#
+# Resolution must not go through `/commits/{sha}/pulls` first: a merge commit
+# still belongs to the pull request that merged it, so production deploys would
+# be filed under the merged feature branch — writing main's data to a branch
+# that no longer exists and resetting that branch from "merged" to "open".
+# DEPLOYMENT_ENVIRONMENT below is the first line of defence.
+#
+# TOOLING VS. DATA
+# -----------------
+# This job checks out the *deployed commit* to read that branch's
+# registry.json and screenshot exactly what went live. It must NOT run
+# scripts/*.mjs from that same checkout: a branch that predates this CI system
+# (or that simply hasn't merged recent main) does not have those files, and
+# the job fails with a bare "Cannot find module" pointing at nothing useful.
+# We hit this registering a branch from April against tooling built in
+# August. So the workflow checks out two things — the deployed commit for
+# data, the default branch for tooling — and never crosses them.
+name: Register prototypes
+
+on:
+  deployment_status:
+
+# One registration per branch. A newer deployment supersedes an in-flight run.
+concurrency:
+  group: register-prototypes-${{ github.event.deployment.ref }}
+  cancel-in-progress: true
+
+jobs:
+  register:
+    name: Screenshot and upsert
+    # Vercel reports pending/in_progress/error too; only a finished, successful
+    # deployment has a URL worth opening.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment_url != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Check out the deployed commit
+        uses: actions/checkout@v4
+        with:
+          # Not the branch tip: the branch may have moved on since the
+          # deployment, and registry.json must match what was deployed.
+          ref: ${{ github.event.deployment.sha }}
+
+      # The tooling to run against that data — deliberately a separate
+      # checkout. See "TOOLING VS. DATA" above.
+      - name: Check out current tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .ci-tooling
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # 22+: @supabase/supabase-js needs a native WebSocket, which
+          # Node 20 does not have — createClient() throws without it.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .ci-tooling/package-lock.json
+
+      - name: Install dependencies
+        working-directory: .ci-tooling
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Chromium
+        working-directory: .ci-tooling
+        run: npx playwright install --with-deps chromium
+
+      # Never register a malformed registry — a bad row is harder to notice
+      # on the hub than a red check here. Runs from the job's default
+      # directory (the deployed commit), so it reads *that* registry.json —
+      # only the script itself comes from .ci-tooling.
+      - name: Validate registry
+        run: node .ci-tooling/scripts/validate-registry.mjs
+
+      - name: Resolve commit author
+        id: commit
+        run: echo "author=$(git log -1 --pretty=%an)" >> "$GITHUB_OUTPUT"
+
+      - name: Register prototypes
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # New-style secret key. The legacy variable is passed too, so a
+          # project still on `service_role` keeps working — the scripts prefer
+          # SUPABASE_SECRET_KEY and fall back. Add whichever your project uses.
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Used only to look up whether this branch has an open PR.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Required when the Vercel project has Deployment Protection on —
+          # without it every preview URL redirects to Vercel SSO and we would
+          # capture a login page. The script fails loudly rather than upload
+          # one, so an empty value here surfaces as a failed run, not junk.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          # Passed through the environment, never interpolated into the shell —
+          # branch and author names are attacker-controllable on a PR.
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          # The project's stable public domain, as a repository *variable*
+          # (Settings > Secrets and variables > Actions > Variables), e.g.
+          # https://atlas-exam-demo-1.vercel.app. Used as the link target on
+          # the default branch, because environment_url is an immutable hashed
+          # build URL that sits behind Vercel SSO on a protected project.
+          PRODUCTION_URL: ${{ vars.REGISTRY_PRODUCTION_URL }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.deployment.ref }}
+          COMMIT_SHA: ${{ github.event.deployment.sha }}
+          COMMIT_AUTHOR: ${{ steps.commit.outputs.author }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # "Production" or "Preview". A merge commit belongs to the PR that
+          # merged it, so this is what keeps a production deploy from being
+          # filed under the feature branch it came from.
+          DEPLOYMENT_ENVIRONMENT: ${{ github.event.deployment.environment }}
+        run: |
+          node .ci-tooling/scripts/register-prototypes.mjs \
+            --deployment-url "$DEPLOYMENT_URL" \
+            --repo "$REPO" \
+            --branch "$BRANCH" \
+            --commit-sha "$COMMIT_SHA" \
+            --author "$COMMIT_AUTHOR" \
+            --default-branch "$DEFAULT_BRANCH" \
+            --production-url "$PRODUCTION_URL" \
+            --environment "$DEPLOYMENT_ENVIRONMENT"
