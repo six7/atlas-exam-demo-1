@@ -78,9 +78,17 @@ git checkout to write into. Do not reintroduce it.
 
 ### Feedback
 
-`app/prototypes/[id]/page.tsx` mounts the Feedback overlay into every
-prototype. Prototypes do not opt in and should not mount their own. Comments
-go through `app/api/feedback/route.ts`, never straight from the client.
+The overlay is **not** bundled with prototypes. It ships as `public/feedback.js`
+from production, and `app/prototypes/[id]/page.tsx` loads it via
+`FeedbackLoader`. That is deliberate: prototypes merged months ago pick up UI
+improvements without being rebuilt.
+
+So `public/feedback.js` has hard constraints — no framework, no build step, no
+imports. It runs inside arbitrary prototypes on arbitrary React versions, in a
+shadow root. Do not "modernise" it into a React component.
+
+Press **C** in a prototype to attach a comment to a DOM element. Comments post
+through `app/api/feedback/route.ts`, never straight from the client.
 
 Anything that floats above a prototype must carry `data-screenshot-hide`, or it
 will end up in the CI screenshots.

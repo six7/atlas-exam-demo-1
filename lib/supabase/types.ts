@@ -48,6 +48,17 @@ export type FeedbackRow = {
   author_name: string;
   commit_sha: string | null;
   created_at: string;
+
+  /**
+   * Where in the prototype this comment points, when it points anywhere.
+   * All null for a comment about the page as a whole, and `selector` may
+   * stop resolving as the prototype changes — `anchor_label` is what a
+   * human reads then.
+   */
+  selector: string | null;
+  anchor_x: number | null;
+  anchor_y: number | null;
+  anchor_label: string | null;
 };
 
 /** Insert shape for CI upserts. `id`/timestamps are database-assigned. */
@@ -61,7 +72,12 @@ export type FeedbackInsert = Pick<
   FeedbackRow,
   "prototype_id" | "body" | "author_name"
 > &
-  Partial<Pick<FeedbackRow, "commit_sha">>;
+  Partial<
+    Pick<
+      FeedbackRow,
+      "commit_sha" | "selector" | "anchor_x" | "anchor_y" | "anchor_label"
+    >
+  >;
 
 export type Database = {
   public: {

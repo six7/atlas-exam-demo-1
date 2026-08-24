@@ -79,10 +79,19 @@ export function claudeDeepLink(repo: string, prompt: string): string {
   )}`;
 }
 
-export function vscodeCloneLink(repo: string): string {
-  return `vscode://vscode.git/clone?url=${encodeURIComponent(
-    `https://github.com/${repo}.git`
-  )}`;
+/**
+ * GitHub Copilot app deep link.
+ *
+ * Wrapped in GitHub's hosted launcher rather than handed out as a raw
+ * `ghapp://` URL: this runs in a web page, and browsers and content filters
+ * routinely refuse to render custom schemes as links. The launcher is plain
+ * https and forwards to the app.
+ */
+export function copilotDeepLink(repo: string, prompt: string): string {
+  const appLink =
+    `ghapp://session/new?repo=${encodeURIComponent(repo)}` +
+    `&mode=interactive&prompt=${encodeURIComponent(prompt)}`;
+  return `https://github.com/copilot/app/launch?open=${encodeURIComponent(appLink)}`;
 }
 
 export function cloneCommand(repo: string, launch: string): string {

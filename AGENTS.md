@@ -123,11 +123,17 @@ prototype appears on the hub.
 
 ### Feedback
 
-Anyone can leave comments on a prototype through the floating **Feedback**
-button, which `app/prototypes/[id]/page.tsx` mounts into every prototype
-automatically — prototypes do not opt in, and should not mount their own.
-Comments post through `app/api/feedback/route.ts` (never straight from the
-client) and are readable on the hub cards.
+Anyone can leave comments through the floating **Feedback** button, or by
+pressing **C** to attach a comment to a specific element — which then shows as
+a pin on the page. Comments post through `app/api/feedback/route.ts` (never
+straight from the client) and are readable on the hub cards.
+
+The overlay is **not** bundled with the prototype. It ships as
+`public/feedback.js` from the production deployment and every prototype loads
+it from there (`NEXT_PUBLIC_FEEDBACK_ORIGIN`), so old prototypes pick up
+improvements without being rebuilt. That is why it is plain dependency-free JS
+in a shadow root rather than a React component — it has to run inside arbitrary
+prototypes built from arbitrary branches.
 
 Chrome that should not appear in CI screenshots is marked
 `data-screenshot-hide`. Add that attribute to anything you introduce that

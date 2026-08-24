@@ -47,6 +47,7 @@ Tick **Production + Preview + Development** (preview deploys are the whole point
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key, `sb_publishable_…` |
+| `NEXT_PUBLIC_FEEDBACK_ORIGIN` | `https://atlas-exam-demo-1.vercel.app` — where every prototype loads the feedback overlay from |
 
 **Do not** add the secret key to Vercel. No runtime path needs it — feedback
 inserts go through RLS as `anon`. Keeping it out of the deployment enforces
@@ -484,3 +485,49 @@ malformed entry fails a check rather than becoming a broken hub card.
 Verified: the dialog's generated entry passes every rule, and the validator
 catches bad slugs, missing fields, duplicate ids, bad dates, unknown fields, and
 missing folders.
+
+---
+
+## Commenting: element anchors, served from production
+
+Two changes, and the second is the structural one.
+
+### Comments can point at an element
+
+Press **C** (or the Feedback button, then *Attach to an element*) to enter pick
+mode: hovering outlines elements, clicking one attaches the comment to it. The
+comment then renders as a pin on the page, and the hub card shows the element's
+label alongside the text.
+
+Migration `0002_feedback_anchors.sql` adds `selector`, `anchor_x`, `anchor_y`,
+and `anchor_label` to `feedback`. All nullable — a comment about the page as a
+whole has no anchor, and comments left before this keep working.
+
+Coordinates are normalised 0..1 *inside the element's box*, so a pin survives a
+resize or a different viewport. Selectors are best-effort by nature: the
+prototype they point into is still being edited. When one stops resolving, the
+overlay shows the comment as unanchored with its `anchor_label` and marks it
+"(gone)" rather than dropping it.
+
+### The overlay is no longer part of the prototype
+
+It ships as `public/feedback.js` on the production deployment, and every
+prototype loads it from there via `NEXT_PUBLIC_FEEDBACK_ORIGIN`.
+
+That is the point: **a prototype merged months ago picks up improvements to the
+commenting UI without being rebuilt.** Previously the overlay was bundled into
+whatever branch the prototype was built from and froze there.
+
+Consequences that shape the implementation:
+
+- **No framework, no build step.** It cannot depend on the React version — or
+  any dependency — of the page hosting it, so it is plain ES5-ish JS.
+- **Shadow DOM.** A prototype's CSS cannot leak into it and it cannot leak out.
+- **Cross-origin by design.** It calls the API on the origin that served it, so
+  a preview deployment needs no Supabase configuration at all. `/api/feedback`
+  answers CORS for localhost and this project's own `*.vercel.app` hosts;
+  `FEEDBACK_ALLOWED_ORIGINS` extends that for a custom domain.
+- **Short cache.** `next.config.ts` serves it with `max-age=60,
+  must-revalidate`. A long cache would defeat the entire point.
+
+It tags itself `data-screenshot-hide`, so CI screenshots still exclude it.

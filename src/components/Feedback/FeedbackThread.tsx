@@ -1,5 +1,7 @@
 "use client";
 
+import { Crosshair } from "lucide-react";
+
 import type { FeedbackRow } from "@/lib/supabase/types";
 import { formatAbsoluteTime, formatRelativeTime, initials } from "@/lib/format";
 
@@ -67,6 +69,23 @@ export function FeedbackThread({
             >
               {comment.body}
             </p>
+
+            {/* Which element it points at, when it points at one. The hub
+                cannot resolve the selector — the prototype is on another
+                deployment — so it shows the label captured at the time. */}
+            {comment.anchor_label && (
+              <span
+                className="mt-1 inline-flex max-w-full items-center gap-1 truncate rounded px-1.5 py-0.5 text-[10px]"
+                style={{
+                  background: "var(--color-bg-muted)",
+                  color: "var(--color-text-tertiary)",
+                }}
+                title={comment.selector ?? undefined}
+              >
+                <Crosshair size={9} className="shrink-0" />
+                {comment.anchor_label}
+              </span>
+            )}
           </div>
         </li>
       ))}

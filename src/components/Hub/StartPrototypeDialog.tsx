@@ -14,8 +14,8 @@ import {
   buildPrompt,
   claudeDeepLink,
   cloneCommand,
+  copilotDeepLink,
   slugify,
-  vscodeCloneLink,
 } from "./prompt";
 
 type ToolId = "claude" | "copilot" | "codex";
@@ -46,12 +46,12 @@ const TOOLS: Tool[] = [
   {
     id: "copilot",
     label: "GitHub Copilot",
-    deepLink: (repo) => vscodeCloneLink(repo),
-    deepLinkLabel: "Clone in VS Code",
+    deepLink: copilotDeepLink,
+    deepLinkLabel: "Open in GitHub Copilot",
     deepLinkNote:
-      "VS Code will ask where to put the clone. Copilot Chat cannot be pre-filled from a link, so paste the prompt once it opens.",
-    launch: "code .",
-    finish: "Open Copilot Chat (⌃⌘I / Ctrl+Alt+I) and paste the prompt.",
+      "Opens the GitHub Copilot app on this repo with the prompt filled in. Deep links are repo-centric, so it works from a fresh machine.",
+    launch: "copilot",
+    finish: "Review the prompt and start the session.",
   },
   {
     id: "codex",
