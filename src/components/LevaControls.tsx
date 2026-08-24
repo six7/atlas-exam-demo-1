@@ -88,16 +88,44 @@ export function LevaControls() {
 
   const { darkMode, brandColor, radius, baseFontSize, spacingScale } = values;
 
-  // Leva → next-themes
-  useEffect(() => {
-    const desired = darkMode ? "dark" : "light";
-    if (desired !== resolvedTheme) setTheme(desired);
-  }, [darkMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Leva switch ⇄ next-themes.
+  //
+  // This has to be ONE effect. Two effects — one per direction — both run in
+  // the same commit, each seeing the other side's pre-update value, so each
+  // "corrects" the other from a stale reading and the two values swap places
+  // instead of converging. That swap repeats every commit, which is a theme
+  // strobing between light and dark. Deciding once, from both values, is what
+  // makes it impossible.
+  //
+  // The rule: whichever side actually changed wins, and on the first run
+  // next-themes wins — the Leva default is a hardcoded `false`, not a
+  // statement about the user's theme.
+  const prevSync = useRef<{ dark: boolean | null; theme?: string }>({
+    dark: null,
+    theme: undefined,
+  });
 
-  // next-themes → Leva (keeps the toggle in sync with the header switch)
   useEffect(() => {
-    set({ darkMode: resolvedTheme === "dark" });
-  }, [resolvedTheme]); // eslint-disable-line react-hooks/exhaustive-deps
+    const prev = prevSync.current;
+    const darkChanged = darkMode !== prev.dark;
+    const themeChanged = resolvedTheme !== prev.theme;
+    prevSync.current = { dark: darkMode, theme: resolvedTheme };
+
+    // next-themes has not resolved yet; nothing to sync against.
+    if (!resolvedTheme) return;
+
+    const themeIsDark = resolvedTheme === "dark";
+
+    if (prev.dark !== null && darkChanged && !themeChanged) {
+      // The panel switch moved → the theme follows it. Staying silent when it
+      // already agrees keeps a "system" theme from being pinned to an explicit
+      // light/dark by a sync that changed nothing.
+      if (darkMode !== themeIsDark) setTheme(darkMode ? "dark" : "light");
+    } else if (darkMode !== themeIsDark) {
+      // First run, or the theme changed elsewhere → the panel follows it.
+      set({ darkMode: themeIsDark });
+    }
+  }, [darkMode, resolvedTheme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply token overrides as inline CSS variables on <html>
   useEffect(() => {

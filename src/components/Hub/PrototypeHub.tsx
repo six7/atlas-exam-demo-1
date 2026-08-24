@@ -10,14 +10,74 @@ type SortKey = "recency" | "feedback";
 
 const ALL = "__all__";
 
-/** Branch treated as the trunk. Its prototypes group first. */
+/** Branch treated as the trunk — the canonical copy of a prototype. */
 const DEFAULT_BRANCH = "main";
 
-interface Group {
-  key: string;
-  title: string;
-  hint: string;
-  items: HubPrototype[];
+/**
+ * One prototype, plus every branch that happens to carry a copy of it.
+ */
+interface DedupedPrototype extends HubPrototype {
+  /** How many registry rows collapsed into this card. */
+  copies: number;
+  /** Branch names of the other copies, for the tooltip. */
+  otherBranches: string[];
+}
+
+/**
+ * Collapses the registry to one card per prototype.
+ *
+ * `registry.json` is committed per branch and lists *every* prototype, not
+ * just the ones that branch introduced — so a branch touching one prototype
+ * still registers a row for all of them. The hub was showing 8 rows for 4
+ * actual prototypes, and it got worse with every branch.
+ *
+ * The default branch wins when it has a copy, because that is the canonical
+ * version with the stable URL; otherwise the most recently updated row wins,
+ * which is how a prototype that only exists on a branch still appears.
+ *
+ * Feedback is unioned across every copy, so collapsing never hides a
+ * conversation that was left on a different branch's row.
+ */
+function dedupeBySlug(rows: HubPrototype[]): DedupedPrototype[] {
+  const bySlug = new Map<string, HubPrototype[]>();
+  for (const row of rows) {
+    const group = bySlug.get(row.slug);
+    if (group) group.push(row);
+    else bySlug.set(row.slug, [row]);
+  }
+
+  return [...bySlug.values()].map((group) => {
+    const primary =
+      group.find((row) => row.branch === DEFAULT_BRANCH) ??
+      [...group].sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      )[0];
+
+    // Union by id: the same comment can only live on one row, but merging
+    // defensively keeps this correct if that ever stops being true.
+    const seen = new Set<string>();
+    const feedback = group
+      .flatMap((row) => row.feedback)
+      .filter((comment) => {
+        if (seen.has(comment.id)) return false;
+        seen.add(comment.id);
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+
+    return {
+      ...primary,
+      feedback,
+      copies: group.length,
+      otherBranches: group
+        .filter((row) => row.branch !== primary.branch)
+        .map((row) => row.branch),
+    };
+  });
 }
 
 /**
@@ -42,13 +102,17 @@ export function PrototypeHub({ data }: { data: HubData }) {
   );
 
   const visible = useMemo(() => {
+    // Filter the raw rows first, then collapse. Filtering by branch therefore
+    // means "prototypes that branch carries", which is what you want when you
+    // pick one — rather than filtering the already-collapsed cards, where a
+    // branch's copy would have been thrown away before the filter ran.
     const filtered = data.prototypes.filter((prototype) => {
       if (branch !== ALL && prototype.branch !== branch) return false;
       if (author !== ALL && (prototype.author ?? "Unknown") !== author) return false;
       return true;
     });
 
-    return [...filtered].sort((a, b) => {
+    return dedupeBySlug(filtered).sort((a, b) => {
       if (sort === "feedback") {
         const delta = b.feedback.length - a.feedback.length;
         if (delta !== 0) return delta;
@@ -59,39 +123,11 @@ export function PrototypeHub({ data }: { data: HubData }) {
     });
   }, [data.prototypes, branch, author, sort]);
 
-  // main first, then live branches, then anything already merged or closed.
-  const groups = useMemo<Group[]>(() => {
-    const main: HubPrototype[] = [];
-    const open: HubPrototype[] = [];
-    const archived: HubPrototype[] = [];
-
-    for (const prototype of visible) {
-      if (prototype.branch === DEFAULT_BRANCH) main.push(prototype);
-      else if (prototype.status === "open") open.push(prototype);
-      else archived.push(prototype);
-    }
-
-    return [
-      {
-        key: "main",
-        title: "On main",
-        hint: "Merged into the trunk",
-        items: main,
-      },
-      {
-        key: "open",
-        title: "Open branches",
-        hint: "Still in progress",
-        items: open,
-      },
-      {
-        key: "archived",
-        title: "Merged & closed",
-        hint: "Branch is no longer open",
-        items: archived,
-      },
-    ].filter((group) => group.items.length > 0);
-  }, [visible]);
+  /** Distinct prototypes in the registry, ignoring filters — the "of N". */
+  const totalPrototypes = useMemo(
+    () => new Set(data.prototypes.map((p) => p.slug)).size,
+    [data.prototypes]
+  );
 
   const filtersActive = branch !== ALL || author !== ALL;
 
@@ -127,34 +163,23 @@ export function PrototypeHub({ data }: { data: HubData }) {
           className="ml-auto text-xs tabular-nums"
           style={{ color: "var(--color-text-tertiary)" }}
         >
-          {visible.length} of {data.prototypes.length}
+          {visible.length} of {totalPrototypes}
         </span>
       </div>
 
-      {groups.length === 0 ? (
+      {/* One list, whatever branch each prototype came from. */}
+      {visible.length === 0 ? (
         <EmptyState filtersActive={filtersActive} />
       ) : (
-        groups.map((group) => (
-          <section key={group.key} className="flex flex-col gap-3">
-            <div className="flex items-baseline gap-2">
-              <h2
-                className="text-sm font-semibold tracking-tight"
-                style={{ color: "var(--color-text-primary)" }}
-              >
-                {group.title}
-              </h2>
-              <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
-                {group.hint} · {group.items.length}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {group.items.map((prototype) => (
-                <PrototypeCard key={prototype.id} prototype={prototype} />
-              ))}
-            </div>
-          </section>
-        ))
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visible.map((prototype) => (
+            <PrototypeCard
+              key={prototype.slug}
+              prototype={prototype}
+              alsoOn={prototype.otherBranches}
+            />
+          ))}
+        </div>
       )}
     </div>
   );

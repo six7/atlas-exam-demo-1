@@ -10,6 +10,17 @@
 #
 # This finds a branch's most recent successful deployment and registers it, so
 # an existing branch can be onboarded without an empty commit.
+#
+# TOOLING VS. DATA
+# -----------------
+# This is precisely the workflow where the trap bites: it exists to onboard
+# branches that were never registered, which are disproportionately likely to
+# predate scripts/*.mjs entirely. It checks out the target branch to read its
+# registry.json, and separately checks out the default branch to run the
+# scripts — never scripts/*.mjs from the target branch's own checkout. Found
+# by running this against a branch from April with tooling built in August:
+# it failed on "Cannot find module .../scripts/validate-registry.mjs" because
+# that file simply did not exist on that commit.
 name: Backfill prototypes
 
 on:
@@ -66,16 +77,27 @@ jobs:
         with:
           ref: ${{ steps.deployment.outputs.sha }}
 
+      # The tooling to run against that data — deliberately a separate
+      # checkout. See "TOOLING VS. DATA" above.
+      - name: Check out current tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .ci-tooling
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: .ci-tooling/package-lock.json
 
-      - run: npm ci --legacy-peer-deps
-      - run: npx playwright install --with-deps chromium
+      - working-directory: .ci-tooling
+        run: npm ci --legacy-peer-deps
+      - working-directory: .ci-tooling
+        run: npx playwright install --with-deps chromium
 
       - name: Validate registry
-        run: node scripts/validate-registry.mjs
+        run: node .ci-tooling/scripts/validate-registry.mjs
 
       - name: Resolve commit author
         id: commit
@@ -96,7 +118,7 @@ jobs:
           COMMIT_AUTHOR: ${{ steps.commit.outputs.author }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          node scripts/register-prototypes.mjs \
+          node .ci-tooling/scripts/register-prototypes.mjs \
             --deployment-url "$DEPLOYMENT_URL" \
             --repo "$REPO" \
             --branch "$BRANCH" \

@@ -5,14 +5,16 @@ import { Sun, Moon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // Avoid hydration mismatch
   useEffect(() => setMounted(true), []);
   if (!mounted) return <div className="w-8 h-8" />;
 
-  const isDark = theme === "dark";
+  // resolvedTheme, not theme — under "system" theme is "system",
+  // which would make the first click a no-op.
+  const isDark = resolvedTheme === "dark";
 
   return (
     <button

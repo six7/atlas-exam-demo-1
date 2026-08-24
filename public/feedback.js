@@ -85,7 +85,10 @@
 
     var parts = [];
     var node = el;
-    while (node && node.nodeType === 1 && node !== document.body && parts.length < 6) {
+    // 32 is a safety valve against pathological trees, not a realistic cap —
+    // component libraries routinely wrap a nav item in 8-10 divs, so a short
+    // cap was cutting the walk off before it reached <body>.
+    while (node && node.nodeType === 1 && node !== document.body && parts.length < 32) {
       var part = node.tagName.toLowerCase();
       var parent = node.parentElement;
       if (parent) {
@@ -100,7 +103,10 @@
       parts.unshift(part);
       node = node.parentElement;
     }
-    return "body > " + parts.join(" > ");
+    // Only claim the "body >" anchor when the walk actually reached <body>.
+    // Asserting it after an early stop describes a parent/child relationship
+    // that doesn't exist, so the selector would never match anything.
+    return (node === document.body ? "body > " : "") + parts.join(" > ");
   }
 
   /** Human-readable fallback for when the selector stops matching. */
@@ -690,15 +696,33 @@
     return t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || el.isContentEditable;
   }
 
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "c" && e.key !== "C") return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (typing(e.target) || typing(root.activeElement)) return;
-    e.preventDefault();
-    if (status === "idle") load();
-    if (picking) stopPicking();
-    else startPicking();
-  });
+  /**
+   * `C` toggles pick mode.
+   *
+   * Bound on `window` in the CAPTURE phase, deliberately. Preview deployments
+   * carry the Vercel Toolbar, which registers its own keyboard shortcuts and
+   * swallowed this before it ever reached the page — the key worked on
+   * production and silently did nothing on exactly the previews people review
+   * on. Capturing at the window means we see it first, whatever else the host
+   * page loads.
+   */
+  window.addEventListener(
+    "keydown",
+    function (e) {
+      if (e.key !== "c" && e.key !== "C") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // `composedPath()[0]` sees through shadow roots, so a keystroke inside
+      // another overlay's input is still recognised as typing.
+      var target = (e.composedPath && e.composedPath()[0]) || e.target;
+      if (typing(target) || typing(root.activeElement)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (status === "idle") load();
+      if (picking) stopPicking();
+      else startPicking();
+    },
+    true
+  );
 
   /* ---------------------------------------------------------------- */
 

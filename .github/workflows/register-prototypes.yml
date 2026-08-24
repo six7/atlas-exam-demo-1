@@ -19,6 +19,17 @@
 # be filed under the merged feature branch — writing main's data to a branch
 # that no longer exists and resetting that branch from "merged" to "open".
 # DEPLOYMENT_ENVIRONMENT below is the first line of defence.
+#
+# TOOLING VS. DATA
+# -----------------
+# This job checks out the *deployed commit* to read that branch's
+# registry.json and screenshot exactly what went live. It must NOT run
+# scripts/*.mjs from that same checkout: a branch that predates this CI system
+# (or that simply hasn't merged recent main) does not have those files, and
+# the job fails with a bare "Cannot find module" pointing at nothing useful.
+# We hit this registering a branch from April against tooling built in
+# August. So the workflow checks out two things — the deployed commit for
+# data, the default branch for tooling — and never crosses them.
 name: Register prototypes
 
 on:
@@ -50,6 +61,14 @@ jobs:
           # deployment, and registry.json must match what was deployed.
           ref: ${{ github.event.deployment.sha }}
 
+      # The tooling to run against that data — deliberately a separate
+      # checkout. See "TOOLING VS. DATA" above.
+      - name: Check out current tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .ci-tooling
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -57,17 +76,22 @@ jobs:
           # Node 20 does not have — createClient() throws without it.
           node-version: 22
           cache: npm
+          cache-dependency-path: .ci-tooling/package-lock.json
 
       - name: Install dependencies
+        working-directory: .ci-tooling
         run: npm ci --legacy-peer-deps
 
       - name: Install Chromium
+        working-directory: .ci-tooling
         run: npx playwright install --with-deps chromium
 
       # Never register a malformed registry — a bad row is harder to notice
-      # on the hub than a red check here.
+      # on the hub than a red check here. Runs from the job's default
+      # directory (the deployed commit), so it reads *that* registry.json —
+      # only the script itself comes from .ci-tooling.
       - name: Validate registry
-        run: node scripts/validate-registry.mjs
+        run: node .ci-tooling/scripts/validate-registry.mjs
 
       - name: Resolve commit author
         id: commit
@@ -107,7 +131,7 @@ jobs:
           # filed under the feature branch it came from.
           DEPLOYMENT_ENVIRONMENT: ${{ github.event.deployment.environment }}
         run: |
-          node scripts/register-prototypes.mjs \
+          node .ci-tooling/scripts/register-prototypes.mjs \
             --deployment-url "$DEPLOYMENT_URL" \
             --repo "$REPO" \
             --branch "$BRANCH" \
