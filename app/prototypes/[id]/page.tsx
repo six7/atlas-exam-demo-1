@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { PrototypeRenderer } from "./PrototypeRenderer";
-import { FeedbackOverlay } from "@/src/components/Feedback/FeedbackOverlay";
+import { FeedbackLoader } from "@/src/components/Feedback/FeedbackLoader";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 function getIds(): string[] {
@@ -25,12 +25,11 @@ export default async function PrototypePage({
     <>
       <PrototypeRenderer id={id} />
       {/*
-        Mounted here rather than inside each prototype, so every prototype
-        gets the overlay without opting in. Hidden entirely when there is no
-        shared registry to talk to — a permanently disabled button would just
-        be noise in a standalone checkout.
+        Mounted here rather than inside each prototype, so every prototype gets
+        the overlay without opting in — and loaded from production, so it is
+        never pinned to the branch this prototype was built from.
       */}
-      {isSupabaseConfigured() && <FeedbackOverlay slug={id} />}
+      {isSupabaseConfigured() && <FeedbackLoader slug={id} />}
     </>
   );
 }

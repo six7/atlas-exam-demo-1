@@ -47,12 +47,25 @@ Tick **Production + Preview + Development** (preview deploys are the whole point
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key, `sb_publishable_…` |
+| `NEXT_PUBLIC_FEEDBACK_ORIGIN` | `https://atlas-exam-demo-1.vercel.app` — where every prototype loads the feedback overlay from |
 
 **Do not** add the secret key to Vercel. No runtime path needs it — feedback
 inserts go through RLS as `anon`. Keeping it out of the deployment enforces
 "CI writes, the app never does" structurally rather than by convention.
 
-### 3. GitHub — Settings → Secrets and variables → Actions → **Repository secrets**
+### 3. GitHub — Settings → Secrets and variables → Actions
+
+**Repository *variables*** (not secrets — this one is a public URL):
+
+| Variable | Value |
+|---|---|
+| `REGISTRY_PRODUCTION_URL` | `https://atlas-exam-demo-1.vercel.app` |
+
+Without it, cards for `main` link to the immutable hashed build URL
+(`…-9o8yim5eu-….vercel.app`), which is behind Vercel SSO on a protected
+project — so clicking a card lands on a login page.
+
+**Repository secrets:**
 
 | Secret | Value |
 |---|---|
@@ -186,7 +199,7 @@ so adding that secret instead works if the project is still on legacy keys.
 
 ## Stage 3 — CI registration
 
-**Status:** ✅ built — awaiting your validation
+**Status:** ✅ **validated** — 2026-08-24, both workflows green in CI
 
 ### What gets built
 - [x] `.github/workflows/register-prototypes.yml` — triggers on `deployment_status`, `state == 'success'`
@@ -253,7 +266,7 @@ were caught before merge.
 
 ## Stage 4 — Agent instructions
 
-**Status:** ✅ built — awaiting your validation
+**Status:** ✅ **shipped** — merged in PR #5
 
 ### What gets built
 - [x] `AGENTS.md` describes the shared registry
@@ -332,6 +345,37 @@ locally:
 Confirmed working in that run: the Vercel bypass secret (`bypass set`, all
 three screenshots captured from a protected preview).
 
+**2026-08-24 — Stage 3 ✅ (after the fixes above)**
+
+`Register prototypes` on `de876d8` — **success**:
+```
+resolved   de876d8 → branch "claude/shared-prototype-registry-ef3253"
+pr         5
+bypass     set
+✓ onboarding-flow / dashboard-v2 / list-of-projects
+```
+
+`Update prototype status` on PR #5 close — **success**:
+```
+✓ Marked 3 row(s) "merged" for six7/atlas-exam-demo-1 @ claude/shared-prototype-registry-ef3253
+```
+
+Registry now holds 6 rows — 3 on `main`, 3 on the merged branch — all with
+screenshots, and the hub groups them "On main" then "Merged & closed" with the
+`#5` PR chip. Every stage is validated end to end.
+
+### Known consequence: merged branch rows persist
+
+A merged branch keeps its rows, marked `merged`, in the "Merged & closed"
+group. So the same prototype can appear twice — once under `main`, once under
+the branch it came from.
+
+This is deliberate. `feedback` has `on delete cascade`, so deleting a merged
+branch's rows would destroy the review conversation attached to them. Keeping
+them preserves that history at the cost of a longer archive section. If the
+archive ever gets noisy, the fix is to collapse that group in the UI rather
+than to delete rows.
+
 ---
 
 ## What I verified, and what I could not
@@ -377,3 +421,113 @@ Those are exactly what the per-stage checks above are for.
 - **`status` on the default branch is `merged`.** `main` has no PR to close, and
   its prototypes are in the trunk. The hub groups by branch first, so they still
   land in "On main" rather than the archived group.
+
+---
+
+## Deployment Protection vs. sharing
+
+The hub is public at **https://atlas-exam-demo-1.vercel.app**. Prototypes on
+`main` are reachable there too, once `REGISTRY_PRODUCTION_URL` is set.
+
+**Prototypes on feature branches are not.** Vercel Deployment Protection puts
+every preview behind SSO, and GitHub's `deployment_status` event carries only
+the per-deployment URL — Vercel's payload is empty, so there is no stable
+public alias for CI to record instead. Anyone without Vercel access to the team
+clicking a branch card gets a login page.
+
+That is a direct conflict with the point of the hub. Three ways out:
+
+1. **Turn off Vercel Authentication for preview deployments**
+   (Settings → Deployment Protection). Everything works for everyone. Previews
+   become reachable by anyone with the URL — usually fine for prototypes,
+   but it is a real decision.
+2. **Give every reviewer Vercel access** to the team. Works, but designers and
+   stakeholders often will not have it.
+3. **Leave it.** Branch prototypes stay reviewable only by people with Vercel
+   access; the hub still shows what exists, who made it, and its screenshot.
+
+Do **not** append the automation bypass secret to the card links. The hub is a
+public page, so that would publish the secret in its HTML and disable the
+protection for everyone anyway.
+
+---
+
+## Prototype creation, reworked
+
+The original **New prototype** button was a server action that wrote
+`src/prototypes/<slug>/index.tsx` and appended to `registry.json` with `fs`.
+That works locally and fails on every deployment — a serverless instance has no
+git checkout to write into, so clicking it on the hub returned a digest error.
+
+It now composes a prompt instead. You describe the prototype, pick **Claude
+Code**, **GitHub Copilot**, or **Codex**, and the dialog hands you a deep link
+(where the tool provides one), clone commands, and a prompt naming the exact
+folder and registry entry to create. The agent does the work in your checkout;
+the prototype reaches the hub when you push.
+
+What each tool actually supports, since none does clone-and-prompt in one click:
+
+| Tool | Deep link | What it does |
+|---|---|---|
+| Claude Code | `claude-cli://open?repo=&q=` | Opens a session in an **existing** clone with the prompt filled in. Does not clone. |
+| GitHub Copilot | `vscode://vscode.git/clone?url=` | Clones in VS Code. Copilot Chat cannot be pre-filled, so the prompt is pasted. |
+| Codex | none | Clone commands plus the prompt. |
+
+### The registry contract is now enforced
+
+`scripts/validate-registry.mjs` (`npm run validate:registry`) requires all five
+fields, kebab-case unique ids, `YYYY-MM-DD` dates, no unknown fields, and a
+matching `src/prototypes/<id>/index.tsx`. It runs on every pull request that
+touches `src/prototypes/`, and again before CI registers anything, so a
+malformed entry fails a check rather than becoming a broken hub card.
+`src/prototypes/registry.schema.json` gives editors the same rules inline.
+
+Verified: the dialog's generated entry passes every rule, and the validator
+catches bad slugs, missing fields, duplicate ids, bad dates, unknown fields, and
+missing folders.
+
+---
+
+## Commenting: element anchors, served from production
+
+Two changes, and the second is the structural one.
+
+### Comments can point at an element
+
+Press **C** (or the Feedback button, then *Attach to an element*) to enter pick
+mode: hovering outlines elements, clicking one attaches the comment to it. The
+comment then renders as a pin on the page, and the hub card shows the element's
+label alongside the text.
+
+Migration `0002_feedback_anchors.sql` adds `selector`, `anchor_x`, `anchor_y`,
+and `anchor_label` to `feedback`. All nullable — a comment about the page as a
+whole has no anchor, and comments left before this keep working.
+
+Coordinates are normalised 0..1 *inside the element's box*, so a pin survives a
+resize or a different viewport. Selectors are best-effort by nature: the
+prototype they point into is still being edited. When one stops resolving, the
+overlay shows the comment as unanchored with its `anchor_label` and marks it
+"(gone)" rather than dropping it.
+
+### The overlay is no longer part of the prototype
+
+It ships as `public/feedback.js` on the production deployment, and every
+prototype loads it from there via `NEXT_PUBLIC_FEEDBACK_ORIGIN`.
+
+That is the point: **a prototype merged months ago picks up improvements to the
+commenting UI without being rebuilt.** Previously the overlay was bundled into
+whatever branch the prototype was built from and froze there.
+
+Consequences that shape the implementation:
+
+- **No framework, no build step.** It cannot depend on the React version — or
+  any dependency — of the page hosting it, so it is plain ES5-ish JS.
+- **Shadow DOM.** A prototype's CSS cannot leak into it and it cannot leak out.
+- **Cross-origin by design.** It calls the API on the origin that served it, so
+  a preview deployment needs no Supabase configuration at all. `/api/feedback`
+  answers CORS for localhost and this project's own `*.vercel.app` hosts;
+  `FEEDBACK_ALLOWED_ORIGINS` extends that for a custom domain.
+- **Short cache.** `next.config.ts` serves it with `max-age=60,
+  must-revalidate`. A long cache would defeat the entire point.
+
+It tags itself `data-screenshot-hide`, so CI screenshots still exclude it.

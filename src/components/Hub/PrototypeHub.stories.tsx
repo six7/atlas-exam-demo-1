@@ -20,7 +20,8 @@ function comment(
   prototypeId: string,
   author: string,
   body: string,
-  age: number
+  age: number,
+  anchor?: string
 ): FeedbackRow {
   return {
     id,
@@ -29,6 +30,10 @@ function comment(
     author_name: author,
     commit_sha: "a1b2c3d4e5f6",
     created_at: ago(age),
+    selector: anchor ? "body > main > div > button" : null,
+    anchor_x: anchor ? 0.5 : null,
+    anchor_y: anchor ? 0.5 : null,
+    anchor_label: anchor ?? null,
   };
 }
 
@@ -63,7 +68,7 @@ const PROTOTYPES: HubPrototype[] = [
     branch: "main",
     updatedAt: ago(2 * HOUR),
     feedback: [
-      comment("c1", "1", "Maya Chen", "The activity feed density feels right. Can we try it with 20+ items?", 5 * HOUR),
+      comment("c1", "1", "Maya Chen", "The activity feed density feels right. Can we try it with 20+ items?", 5 * HOUR, "section · Recent activity"),
       comment("c2", "1", "Sam Wilson", "Good call — pushing a version with a longer list.", 3 * HOUR),
     ],
   }),

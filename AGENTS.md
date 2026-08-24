@@ -44,8 +44,6 @@ app/
   (shell)/
     layout.tsx                  ← app shell layout (Projects, Components, Tokens, Settings)
     projects/, components/, tokens/, settings/
-  actions/
-    prototype.ts                ← server action: creates new prototypes
   api/
     feedback/route.ts           ← reads/writes prototype feedback (RLS anon)
 
@@ -60,6 +58,8 @@ supabase/
 scripts/
   register-prototypes.mjs       ← CI: screenshot + upsert into Supabase
   update-prototype-status.mjs   ← CI: mark rows merged/closed
+  validate-registry.mjs         ← guards the registry.json contract
+  verify-registry.mjs           ← live end-to-end check of Supabase setup
 
 .github/workflows/              ← the two CI workflows above
 ```
@@ -123,11 +123,17 @@ prototype appears on the hub.
 
 ### Feedback
 
-Anyone can leave comments on a prototype through the floating **Feedback**
-button, which `app/prototypes/[id]/page.tsx` mounts into every prototype
-automatically — prototypes do not opt in, and should not mount their own.
-Comments post through `app/api/feedback/route.ts` (never straight from the
-client) and are readable on the hub cards.
+Anyone can leave comments through the floating **Feedback** button, or by
+pressing **C** to attach a comment to a specific element — which then shows as
+a pin on the page. Comments post through `app/api/feedback/route.ts` (never
+straight from the client) and are readable on the hub cards.
+
+The overlay is **not** bundled with the prototype. It ships as
+`public/feedback.js` from the production deployment and every prototype loads
+it from there (`NEXT_PUBLIC_FEEDBACK_ORIGIN`), so old prototypes pick up
+improvements without being rebuilt. That is why it is plain dependency-free JS
+in a shadow root rather than a React component — it has to run inside arbitrary
+prototypes built from arbitrary branches.
 
 Chrome that should not appear in CI screenshots is marked
 `data-screenshot-hide`. Add that attribute to anything you introduce that
@@ -166,25 +172,25 @@ variables.
 
 ### Creating a New Prototype
 
-### Via the UI (recommended)
+### Via the hub (recommended)
 
-1. Navigate to `/` (the home page) in the running app.
+1. Open `/` — locally or on the deployed hub, either works.
 2. Click **"New prototype"**.
-3. Fill in: name, your name, description.
-4. Click **"Create prototype"**.
+3. Fill in name, your name, and what you're exploring.
+4. Pick your agent: **Claude Code**, **GitHub Copilot**, or **Codex**.
+5. Use the deep link or the clone commands, then paste the generated prompt.
 
-This automatically:
-- Creates `src/prototypes/[slug]/index.tsx` with a scaffold component
-- Adds an entry to `src/prototypes/registry.json`
-- Redirects you to the new prototype page
+The dialog does not create anything. It composes a prompt that tells an agent
+exactly which folder to create and exactly which `registry.json` entry to add,
+including all five required fields. Creating a prototype means writing into a
+git checkout, which is local work — so the hub hands it off rather than
+pretending to do it server-side.
 
-**It writes to the local filesystem only.** `app/actions/prototype.ts` touches
-two things — your new folder and `registry.json` — and never contacts Supabase.
-The prototype reaches the shared hub when you push and CI registers the
-deployment, not when you create it. Keep it that way: do not add a Supabase
-write to this flow.
+> This replaced a server action that wrote to the filesystem. It worked locally
+> and failed on every deployment, because a serverless instance has no checkout
+> to write into. Don't reintroduce that pattern.
 
-The dev server will hot-reload the new file immediately.
+The dev server hot-reloads the new file immediately.
 
 ### Manually
 
@@ -226,6 +232,18 @@ export default function MyFeature() {
   "createdAt": "2024-01-01"
 }
 ```
+
+Then check it:
+
+```bash
+npm run validate:registry
+```
+
+All five fields are required, `id` must be kebab-case and match the folder
+name, and every entry needs `src/prototypes/<id>/index.tsx`. The same check
+runs on every pull request and again before CI registers anything, so a
+malformed entry fails there rather than becoming a broken card on the hub.
+`src/prototypes/registry.schema.json` gives editors the same rules inline.
 
 That's it. The prototype is automatically discovered at runtime — no other files need to be changed. In particular, **do not** add a row to Supabase by hand; CI does that on the next successful deployment.
 
@@ -387,7 +405,7 @@ After adding, apply our design tokens by ensuring the component uses `border-bor
 | `src/components/ui/` | shadcn primitives + InputField — do not edit directly |
 | `src/components/AppShell/` | Shared shell components — discuss changes |
 | `src/prototypes/[your-id]/` | Yours — edit freely |
-| `src/prototypes/registry.json` | Auto-managed by the prototype creator — the authoring source of truth |
+| `src/prototypes/registry.json` | The authoring source of truth — validated by `npm run validate:registry` |
 | Supabase `prototypes` table | **CI only** — never written from app code or by an agent |
 | `lib/supabase/`, `lib/registry/` | Shared registry plumbing — discuss changes |
 | `scripts/*.mjs`, `.github/workflows/` | CI registration — the only place registry writes belong |

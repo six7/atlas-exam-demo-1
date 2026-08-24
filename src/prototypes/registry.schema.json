@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/six7/atlas-exam-demo-1/src/prototypes/registry.schema.json",
+  "title": "Atlas prototype registry",
+  "description": "The authoring source of truth for prototypes. CI mirrors these entries into the shared Supabase index; nothing writes back to this file.",
+  "type": "object",
+  "required": ["prototypes"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Editor hint. Not part of the registry data."
+    },
+    "prototypes": {
+      "type": "array",
+      "description": "One entry per prototype on this branch.",
+      "items": { "$ref": "#/definitions/prototype" }
+    }
+  },
+  "definitions": {
+    "prototype": {
+      "type": "object",
+      "required": ["id", "name", "author", "description", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "minLength": 2,
+          "maxLength": 60,
+          "description": "Kebab-case slug. Must match the folder name in src/prototypes/ and becomes the URL: /prototypes/<id>."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Human-readable title shown on the hub card."
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Who owns this prototype. Shown on the card so people know who to ask."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 280,
+          "description": "One line on what you are exploring. This is what teammates read before deciding to open it."
+        },
+        "createdAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "ISO date, YYYY-MM-DD."
+        }
+      }
+    }
+  }
+}

@@ -32,6 +32,13 @@
  *                                 SUPABASE_SERVICE_ROLE_KEY.
  *   GITHUB_TOKEN                  optional, used to find the PR
  *   GITHUB_REPOSITORY             e.g. "six7/atlas-exam-demo-1"
+ *   PRODUCTION_URL                optional but recommended — the project's
+ *                                 stable public domain, e.g.
+ *                                 https://atlas-exam-demo-1.vercel.app. Used
+ *                                 as the link target for the default branch
+ *                                 instead of the immutable per-deployment URL,
+ *                                 which is hashed and, on a protected project,
+ *                                 sits behind Vercel SSO.
  *   VERCEL_AUTOMATION_BYPASS_SECRET
  *                                 required when the Vercel project has
  *                                 Deployment Protection enabled — otherwise
@@ -127,6 +134,9 @@ if (!branch) fail("Missing --branch.");
 const commitSha = args.commitSha ?? process.env.COMMIT_SHA ?? null;
 const author = args.author ?? process.env.COMMIT_AUTHOR ?? null;
 const defaultBranch = args.defaultBranch ?? process.env.DEFAULT_BRANCH ?? "main";
+/** Vercel reports "Production" or "Preview". Decisive for a merge commit. */
+const environment =
+  args.environment ?? process.env.DEPLOYMENT_ENVIRONMENT ?? "";
 /** Optional local copy of every capture, for eyeballing what CI sees. */
 const screenshotDir = args.screenshotDir ?? null;
 
@@ -136,6 +146,18 @@ const screenshotDir = args.screenshotDir ?? null;
  */
 const bypassSecret =
   args.bypassSecret ?? process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? null;
+
+/**
+ * The project's stable public domain. GitHub's deployment_status event only
+ * carries the immutable per-deployment URL (`…-9o8yim5eu-….vercel.app`), which
+ * is both ugly and — with Deployment Protection on — behind Vercel SSO. For
+ * the default branch we would rather link people at the real domain.
+ */
+const productionUrl = args.productionUrl
+  ? stripTrailingSlash(args.productionUrl)
+  : process.env.PRODUCTION_URL
+    ? stripTrailingSlash(process.env.PRODUCTION_URL)
+    : null;
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const secretKey = resolveSecretKey();
@@ -201,45 +223,59 @@ async function github(pathname) {
  * would change on every commit, so upserts would never dedupe, pruning would
  * never match, the hub could not group by branch, and the PR-close workflow
  * (which sees a real branch name) would never find these rows.
- *
- * So when the ref looks like a SHA we ask GitHub what it belongs to: the PR
- * whose head it is, else the branch it is the head of.
  */
 async function resolveBranchAndPr() {
   const [owner] = repo.split("/");
-
-  if (SHA_PATTERN.test(branch)) {
-    const pulls = await github(`/repos/${repo}/commits/${branch}/pulls`);
-    const pull = Array.isArray(pulls)
-      ? pulls.find((p) => p.state === "open") ?? pulls[0]
-      : null;
-
-    if (pull?.head?.ref) {
-      return { branch: pull.head.ref, prNumber: pull.state === "open" ? pull.number : null };
-    }
-
-    const heads = await github(
-      `/repos/${repo}/commits/${branch}/branches-where-head`
-    );
-    if (Array.isArray(heads) && heads[0]?.name) {
-      return { branch: heads[0].name, prNumber: null };
-    }
-
-    console.warn(
-      `  ⚠ Could not resolve branch for commit ${branch.slice(0, 7)}; ` +
-        "registering against the SHA. Check that GITHUB_TOKEN is set."
-    );
-    return { branch, prNumber: null };
-  }
+  const name = SHA_PATTERN.test(branch) ? await branchForSha(branch) : branch;
 
   const pulls = await github(
     `/repos/${repo}/pulls?state=open&per_page=1` +
-      `&head=${encodeURIComponent(`${owner}:${branch}`)}`
+      `&head=${encodeURIComponent(`${owner}:${name}`)}`
   );
+
   return {
-    branch,
+    branch: name,
     prNumber: Array.isArray(pulls) ? pulls[0]?.number ?? null : null,
   };
+}
+
+/**
+ * Maps a commit SHA back to the branch it belongs to.
+ *
+ * Order matters here. An earlier version asked `/commits/{sha}/pulls` first,
+ * which looks right and is wrong for the most important case: a merge commit
+ * on the default branch still belongs to the pull request that merged it, so
+ * production deployments resolved to the *merged feature branch*. Main's rows
+ * were written under a branch that no longer exists, and that branch's rows
+ * were reset from "merged" back to "open".
+ *
+ * So: trust the deployment environment first, then ask which branch this
+ * commit is actually the head of, and only fall back to pull requests that are
+ * still open.
+ */
+async function branchForSha(sha) {
+  if (environment.toLowerCase() === "production") return defaultBranch;
+
+  const heads = await github(`/repos/${repo}/commits/${sha}/branches-where-head`);
+  if (Array.isArray(heads) && heads.length > 0) {
+    // A commit can head several branches; the trunk wins.
+    if (heads.some((head) => head.name === defaultBranch)) return defaultBranch;
+    return heads[0].name;
+  }
+
+  // The branch has moved on since this build. An open PR still identifies it;
+  // a closed one would name a branch that is already merged away.
+  const pulls = await github(`/repos/${repo}/commits/${sha}/pulls`);
+  const open = Array.isArray(pulls)
+    ? pulls.find((pull) => pull.state === "open")
+    : null;
+  if (open?.head?.ref) return open.head.ref;
+
+  console.warn(
+    `  ⚠ Could not resolve a branch for commit ${sha.slice(0, 7)}; ` +
+      "registering against the SHA. Check that GITHUB_TOKEN is set."
+  );
+  return sha;
 }
 
 /* ------------------------------------------------------------------ */
@@ -334,6 +370,12 @@ async function main() {
   // main lives in the trunk; every other branch is in flight until its PR closes.
   const status = branch === defaultBranch ? "merged" : "open";
 
+  // Screenshot the exact build that was deployed, but record the stable domain
+  // as the link target on the default branch — that is where people should
+  // land, and it is the one URL that is reliably public.
+  const linkUrl =
+    branch === defaultBranch && productionUrl ? productionUrl : deploymentUrl;
+
   console.log(`\nRegistering ${entries.length} prototype(s)`);
   console.log(`  repo       ${repo}`);
   console.log(`  branch     ${branch}`);
@@ -342,6 +384,7 @@ async function main() {
   console.log(`  pr         ${prNumber ?? "(none open)"}`);
   console.log(`  status     ${status}`);
   console.log(`  bypass     ${bypassSecret ? "set" : "(none)"}`);
+  if (linkUrl !== deploymentUrl) console.log(`  links to   ${linkUrl}`);
   if (dryRun) console.log("  MODE       dry run — nothing will be written\n");
   else console.log("");
 
@@ -423,7 +466,7 @@ async function main() {
       name: entry.name,
       description: entry.description,
       path: entry.path,
-      preview_url: deploymentUrl,
+      preview_url: linkUrl,
       screenshot_url: screenshotUrls.get(entry.slug) ?? null,
       commit_sha: commitSha,
       author: entry.author,

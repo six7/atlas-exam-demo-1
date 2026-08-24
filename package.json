@@ -10,7 +10,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "register:prototypes": "node scripts/register-prototypes.mjs",
-    "verify:registry": "node scripts/verify-registry.mjs"
+    "verify:registry": "node scripts/verify-registry.mjs",
+    "validate:registry": "node scripts/validate-registry.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

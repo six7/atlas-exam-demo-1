@@ -55,17 +55,40 @@ This is structural, not a convention:
 If a change genuinely needs to write to the registry, it belongs in
 `scripts/register-prototypes.mjs`.
 
-### The "New prototype" flow writes locally only
+### Rule 3 — every entry must pass validation
 
-`app/actions/prototype.ts` creates the folder and appends to `registry.json`.
-It does not contact Supabase, and must not start to. The prototype reaches the
-hub when CI registers the deployment, not when it is created.
+```bash
+npm run validate:registry
+```
+
+All five fields are required. `id` must be kebab-case and match the folder
+name, `createdAt` must be `YYYY-MM-DD`, ids must be unique, and every entry
+needs `src/prototypes/<id>/index.tsx`. The check runs on every pull request and
+again before CI registers anything. Run it after editing the registry.
+
+### The "New prototype" button composes a prompt
+
+It does not create files. It builds a prompt for Claude Code, Copilot, or Codex
+describing the folder and the exact registry entry to write, and the agent does
+the work locally.
+
+An earlier version was a server action that wrote to the filesystem. That
+worked locally and failed on every deployment — a serverless instance has no
+git checkout to write into. Do not reintroduce it.
 
 ### Feedback
 
-`app/prototypes/[id]/page.tsx` mounts the Feedback overlay into every
-prototype. Prototypes do not opt in and should not mount their own. Comments
-go through `app/api/feedback/route.ts`, never straight from the client.
+The overlay is **not** bundled with prototypes. It ships as `public/feedback.js`
+from production, and `app/prototypes/[id]/page.tsx` loads it via
+`FeedbackLoader`. That is deliberate: prototypes merged months ago pick up UI
+improvements without being rebuilt.
+
+So `public/feedback.js` has hard constraints — no framework, no build step, no
+imports. It runs inside arbitrary prototypes on arbitrary React versions, in a
+shadow root. Do not "modernise" it into a React component.
+
+Press **C** in a prototype to attach a comment to a DOM element. Comments post
+through `app/api/feedback/route.ts`, never straight from the client.
 
 Anything that floats above a prototype must carry `data-screenshot-hide`, or it
 will end up in the CI screenshots.

@@ -35,13 +35,9 @@ npm run storybook
 
 ## Creating a prototype
 
-The easiest way is through the UI:
+Open the hub and click **"New prototype"**. Describe what you're building, pick your agent — Claude Code, GitHub Copilot, or Codex — and it hands you a prompt that creates `src/prototypes/[slug]/index.tsx` and the matching `registry.json` entry.
 
-1. Go to `http://localhost:3000`
-2. Click **"New prototype"**
-3. Fill in name, author, and description → **Create**
-
-This creates `src/prototypes/[slug]/index.tsx` and registers it in `src/prototypes/registry.json`. The new prototype is immediately available at `/prototypes/[slug]`.
+Check it with `npm run validate:registry`. The same check runs on every pull request.
 
 To add the Atlas app shell to your prototype, import the shared AppShell components — see `src/prototypes/dashboard-v2/index.tsx` as a reference. Shell usage is opt-in; prototypes render full-screen by default.
 
