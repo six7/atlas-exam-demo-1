@@ -68,9 +68,14 @@ again before CI registers anything. Run it after editing the registry.
 
 ### The "New prototype" button composes a prompt
 
-It does not create files. It builds a prompt for Claude Code, Copilot, or Codex
-describing the folder and the exact registry entry to write, and the agent does
-the work locally.
+It does not create files. It emits the author's brief plus the five registry
+fields, and the agent does the work locally.
+
+The prompt deliberately carries **no procedure** — no "read AGENTS.md first",
+no token rules, no "don't write to Supabase". Those live in AGENTS.md under
+*"If you are an agent handed a New prototype prompt"*. Repeating them in every
+generated prompt buried the one part only the author could write. Do not add
+them back.
 
 An earlier version was a server action that wrote to the filesystem. That
 worked locally and failed on every deployment — a serverless instance has no
