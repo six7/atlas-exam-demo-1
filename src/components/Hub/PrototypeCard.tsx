@@ -23,7 +23,18 @@ import { StatusBadge } from "./StatusBadge";
  * build, not this one. Its feedback thread is readable inline so you can scan
  * everything without opening each prototype.
  */
-export function PrototypeCard({ prototype }: { prototype: HubPrototype }) {
+export function PrototypeCard({
+  prototype,
+  /**
+   * Other branches carrying a copy of this prototype. The hub shows one card
+   * per prototype, so this is the only trace of the rows that collapsed into
+   * it — worth surfacing quietly rather than pretending they don't exist.
+   */
+  alsoOn = [],
+}: {
+  prototype: HubPrototype;
+  alsoOn?: string[];
+}) {
   const [threadOpen, setThreadOpen] = useState(false);
   const commentCount = prototype.feedback.length;
   const sha = shortSha(prototype.commitSha);
@@ -112,6 +123,19 @@ export function PrototypeCard({ prototype }: { prototype: HubPrototype }) {
             <GitBranch size={11} className="shrink-0" />
             <span className="truncate">{prototype.branch}</span>
           </span>
+
+          {alsoOn.length > 0 && (
+            <span
+              className="rounded-md px-1.5 py-0.5 text-[11px]"
+              style={{
+                background: "var(--color-bg-muted)",
+                color: "var(--color-text-tertiary)",
+              }}
+              title={`Also carried by: ${alsoOn.join(", ")}`}
+            >
+              +{alsoOn.length}
+            </span>
+          )}
 
           {prototype.prNumber !== null && (
             <span

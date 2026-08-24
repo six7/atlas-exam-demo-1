@@ -690,15 +690,33 @@
     return t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || el.isContentEditable;
   }
 
-  document.addEventListener("keydown", function (e) {
-    if (e.key !== "c" && e.key !== "C") return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (typing(e.target) || typing(root.activeElement)) return;
-    e.preventDefault();
-    if (status === "idle") load();
-    if (picking) stopPicking();
-    else startPicking();
-  });
+  /**
+   * `C` toggles pick mode.
+   *
+   * Bound on `window` in the CAPTURE phase, deliberately. Preview deployments
+   * carry the Vercel Toolbar, which registers its own keyboard shortcuts and
+   * swallowed this before it ever reached the page — the key worked on
+   * production and silently did nothing on exactly the previews people review
+   * on. Capturing at the window means we see it first, whatever else the host
+   * page loads.
+   */
+  window.addEventListener(
+    "keydown",
+    function (e) {
+      if (e.key !== "c" && e.key !== "C") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // `composedPath()[0]` sees through shadow roots, so a keystroke inside
+      // another overlay's input is still recognised as typing.
+      var target = (e.composedPath && e.composedPath()[0]) || e.target;
+      if (typing(target) || typing(root.activeElement)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (status === "idle") load();
+      if (picking) stopPicking();
+      else startPicking();
+    },
+    true
+  );
 
   /* ---------------------------------------------------------------- */
 
