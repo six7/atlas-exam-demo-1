@@ -46,6 +46,22 @@ app/
     projects/, components/, tokens/, settings/
   actions/
     prototype.ts                ← server action: creates new prototypes
+  api/
+    feedback/route.ts           ← reads/writes prototype feedback (RLS anon)
+
+lib/
+  supabase/                     ← clients: browser, server (anon), admin
+  registry/                     ← hub data layer + local fallback
+
+supabase/
+  migrations/                   ← SQL for the shared registry
+  verify-rls.sql                ← RLS self-check
+
+scripts/
+  register-prototypes.mjs       ← CI: screenshot + upsert into Supabase
+  update-prototype-status.mjs   ← CI: mark rows merged/closed
+
+.github/workflows/              ← the two CI workflows above
 ```
 
 ### The rule: one folder per person
@@ -54,6 +70,97 @@ app/
 - You can create any files inside your prototype folder.
 - Do **not** modify other people's prototype folders.
 - Shared components in `src/components/` are fine to use but should not be modified for a specific prototype. If you need a different version, create it inside your own prototype folder.
+
+---
+
+## The Shared Prototype Registry
+
+Prototypes are indexed centrally so the home page shows work from **every
+branch**, not just the branch a given deployment was built from.
+
+There are two halves, and the split is the important thing to understand:
+
+| | `src/prototypes/registry.json` | Supabase `prototypes` table |
+|---|---|---|
+| Role | **Authoring format** | **Shared index** |
+| Lives | In the repo, per branch | One central database |
+| Written by | You, or the "New prototype" flow | **CI only** |
+| Read by | The app, when Supabase is unset | The hub at `/` |
+
+### The two rules
+
+1. **`src/prototypes/registry.json` is the only registry file an agent edits.**
+   Creating a prototype means adding an entry there and creating the folder.
+   Nothing else.
+
+2. **Never write to Supabase from application code or as an agent.**
+   The `prototypes` table is populated exclusively by
+   `.github/workflows/register-prototypes.yml` after a successful Vercel
+   deployment. Do not add a server action, route handler, script, or migration
+   that inserts, updates, or deletes prototype rows.
+
+This is enforced, not just asked for:
+
+- Row Level Security grants `anon` **SELECT only** on `prototypes`. Writes
+  require a secret key.
+- The secret key is deliberately **not set on Vercel**, so a page that tried to
+  write would fail at runtime rather than quietly succeed.
+- `lib/supabase/admin.ts` is the only module holding a write-capable client,
+  and it is for CI and local scripts. Importing it from `app/` is a bug.
+
+If you think a prototype needs to write to the registry, the change belongs in
+`scripts/register-prototypes.mjs`, not in the app.
+
+### What CI fills in
+
+On every successful deployment, for each entry in `registry.json`, CI records
+`preview_url`, `screenshot_url` (a 1280x800 capture), `commit_sha`, `author`,
+`pr_number`, and `status`, keyed on `(repo, branch, slug)`. Entries removed
+from `registry.json` have their rows deleted, so the hub stays honest.
+
+You do not need to do any of this by hand. Add the entry, push, and the
+prototype appears on the hub.
+
+### Feedback
+
+Anyone can leave comments on a prototype through the floating **Feedback**
+button, which `app/prototypes/[id]/page.tsx` mounts into every prototype
+automatically — prototypes do not opt in, and should not mount their own.
+Comments post through `app/api/feedback/route.ts` (never straight from the
+client) and are readable on the hub cards.
+
+Chrome that should not appear in CI screenshots is marked
+`data-screenshot-hide`. Add that attribute to anything you introduce that
+floats above a prototype.
+
+### Running without Supabase
+
+If `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are
+unset, the hub falls back to reading `registry.json` and says so on screen. The
+repo stays fully usable standalone — so never gate prototype work on having
+Supabase configured.
+
+### API keys
+
+Supabase replaced the legacy JWT keys (`anon` / `service_role`) with
+**publishable** (`sb_publishable_…`) and **secret** (`sb_secret_…`) keys; the
+legacy ones are deprecated at the end of 2026. The code reads the new variable
+names and falls back to the legacy ones, so either generation works:
+
+| Role | New | Legacy fallback |
+|---|---|---|
+| Browser / server reads | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| CI writes | `SUPABASE_SECRET_KEY` | `SUPABASE_SERVICE_ROLE_KEY` |
+
+A publishable key resolves to the `anon` Postgres role and a secret key to
+`service_role`, so **the RLS policies are the same for both** — migrating keys
+needs no schema change. One difference matters if you write a raw REST call:
+new-style keys must be sent on the `apikey` header only, never as
+`Authorization: Bearer`. `scripts/lib/supabase-keys.mjs` handles that;
+`supabase-js` handles it for you.
+
+See `PROGRESS.md` for setup and validation steps, and `.env.example` for the
+variables.
 
 ---
 
@@ -70,6 +177,12 @@ This automatically:
 - Creates `src/prototypes/[slug]/index.tsx` with a scaffold component
 - Adds an entry to `src/prototypes/registry.json`
 - Redirects you to the new prototype page
+
+**It writes to the local filesystem only.** `app/actions/prototype.ts` touches
+two things — your new folder and `registry.json` — and never contacts Supabase.
+The prototype reaches the shared hub when you push and CI registers the
+deployment, not when you create it. Keep it that way: do not add a Supabase
+write to this flow.
 
 The dev server will hot-reload the new file immediately.
 
@@ -114,7 +227,7 @@ export default function MyFeature() {
 }
 ```
 
-That's it. The prototype is automatically discovered at runtime — no other files need to be changed.
+That's it. The prototype is automatically discovered at runtime — no other files need to be changed. In particular, **do not** add a row to Supabase by hand; CI does that on the next successful deployment.
 
 ---
 
@@ -274,17 +387,27 @@ After adding, apply our design tokens by ensuring the component uses `border-bor
 | `src/components/ui/` | shadcn primitives + InputField — do not edit directly |
 | `src/components/AppShell/` | Shared shell components — discuss changes |
 | `src/prototypes/[your-id]/` | Yours — edit freely |
-| `src/prototypes/registry.json` | Auto-managed by the prototype creator |
+| `src/prototypes/registry.json` | Auto-managed by the prototype creator — the authoring source of truth |
+| Supabase `prototypes` table | **CI only** — never written from app code or by an agent |
+| `lib/supabase/`, `lib/registry/` | Shared registry plumbing — discuss changes |
+| `scripts/*.mjs`, `.github/workflows/` | CI registration — the only place registry writes belong |
 | `DESIGN.md` | Brand guidelines — reference before building |
 
 ---
 
 ## Prototype Lifecycle
 
-1. **Create** — use the UI button or manually follow the steps above
+1. **Create** — use the UI button or manually follow the steps above. Writes locally only.
 2. **Build** — iterate freely in your folder, using shared tokens and components
-3. **Share** — share the URL `/prototypes/[your-id]` with the team for review
-4. **Promote** — if a prototype becomes production-ready, extract it into the shared component layer with a PR
+3. **Push** — open a PR. Once Vercel deploys, CI screenshots the prototype and
+   registers it, and it appears on the shared hub at `/` for everyone.
+4. **Review** — teammates leave comments via the Feedback button, readable on
+   the hub without opening each prototype
+5. **Promote** — if a prototype becomes production-ready, extract it into the shared component layer with a PR
+
+Closing the PR marks the branch's rows `merged` or `closed`, which regroups
+them on the hub. Deleting an entry from `registry.json` removes its row on the
+next deployment.
 
 ---
 

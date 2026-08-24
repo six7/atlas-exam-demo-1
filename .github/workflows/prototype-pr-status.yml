@@ -1,0 +1,52 @@
+# Marks a branch's prototypes merged or closed once its PR is done, so the hub
+# can group them out of "Open branches" without losing the history.
+#
+# FORK PRs: `pull_request` runs without secrets for pull requests opened from a
+# fork, so this job is skipped there. Prototypes from fork branches keep their
+# last known status. Fixing that needs `pull_request_target`, which runs
+# untrusted code with secrets available — not worth it for a status field.
+name: Update prototype status
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  update:
+    name: Set merged or closed
+    # Skip fork PRs, where secrets are unavailable and the job would only fail.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # 22+: @supabase/supabase-js needs a native WebSocket, which
+          # Node 20 does not have — createClient() throws without it.
+          node-version: 22
+
+      # No `npm ci`: the script talks to PostgREST over plain fetch.
+      - name: Update status
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # New-style secret key. The legacy variable is passed too, so a
+          # project still on `service_role` keeps working — the scripts prefer
+          # SUPABASE_SECRET_KEY and fall back. Add whichever your project uses.
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          STATUS: ${{ github.event.pull_request.merged && 'merged' || 'closed' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/update-prototype-status.mjs \
+            --repo "$REPO" \
+            --branch "$BRANCH" \
+            --status "$STATUS" \
+            --pr-number "$PR_NUMBER"
