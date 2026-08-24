@@ -65,8 +65,10 @@ const SETTLE_MS = 600;
 
 /**
  * Chrome that must not appear in a prototype screenshot: the feedback overlay
- * (which tags itself `data-screenshot-hide`), the Leva token panel, and the
- * Next.js dev overlay. Leva has no stable id, hence the class-prefix match.
+ * (which tags itself `data-screenshot-hide`), a prototype's own Leva control
+ * panel, and the Next.js dev overlay. Leva mounts itself into a portal on
+ * `document.body` and its panel has no stable id, hence the class-prefix match
+ * alongside the root id.
  */
 const HIDE_CHROME_CSS = `
   [data-screenshot-hide],

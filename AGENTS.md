@@ -340,6 +340,58 @@ If you need a component that doesn't exist, either create it inside your prototy
 
 ---
 
+## Prototype Controls (Leva)
+
+`leva` is available for **prototype-owned controls** — the knobs *you* add to
+your own prototype so it can be explored live: variants, states, counts, copy
+length, feature flags, whatever your brief is actually about.
+
+It is **per prototype and opt-in**. There is no global panel. Nothing mounts
+Leva in `app/layout.tsx`, so a prototype that never calls `useControls` never
+shows a panel.
+
+```tsx
+// src/prototypes/my-feature/index.tsx
+"use client";
+import { useControls } from "leva";
+
+export default function MyFeature() {
+  const { variant, density, showBanner } = useControls({
+    variant: { value: "primary", options: ["primary", "secondary", "ghost"] },
+    density: { value: "comfortable", options: ["comfortable", "compact"] },
+    showBanner: true,
+  });
+
+  return <MyThing variant={variant} density={density} banner={showBanner} />;
+}
+```
+
+`useControls` mounts the panel for you. Render `<Leva />` yourself only when
+you want to configure it (`collapsed`, `hidden`, custom placement) — and only
+inside your own prototype.
+
+### What Leva is not for
+
+**Do not add global controls for design-system values** — brand colour, radius,
+spacing, font size, dark mode. Those are not prototype variables; they are
+`app/tokens.css`, shared by everyone, and a panel that writes them onto `<html>`
+changes every prototype at once.
+
+There used to be exactly such a global panel. It is gone deliberately — do not
+reintroduce one, and do not "improve" a prototype by adding token knobs to it.
+To explore a token change, change the token.
+
+Dark mode in particular belongs to `next-themes` and the header toggle, never to
+a Leva switch: two controls writing the same theme fight each other.
+
+### Screenshots
+
+CI hides any Leva panel before capturing prototype screenshots (see
+`scripts/register-prototypes.mjs`), so your controls will not appear in the hub
+card. You do not need to tag anything.
+
+---
+
 ## Dark Mode
 
 Dark mode is implemented with `next-themes`. The toggle is in the app header. Your prototype automatically supports dark mode if you use design tokens (CSS variables) instead of hardcoded colours.
