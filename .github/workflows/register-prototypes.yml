@@ -10,10 +10,15 @@
 # BRANCH NAMES
 # ------------
 # `github.event.deployment.ref` is not reliably a branch name. Vercel creates
-# deployments against the commit SHA, so that is what arrives here. The script
-# resolves it back to a real branch via the GitHub API — see resolveBranchAndPr
-# in scripts/register-prototypes.mjs. Storing a SHA in `branch` would silently
-# break the (repo, branch, slug) key, pruning, hub grouping, and PR-close.
+# deployments against the commit SHA, so that is what arrives here, and the
+# script resolves it back via the GitHub API (branchForSha in
+# scripts/register-prototypes.mjs).
+#
+# Resolution must not go through `/commits/{sha}/pulls` first: a merge commit
+# still belongs to the pull request that merged it, so production deploys would
+# be filed under the merged feature branch — writing main's data to a branch
+# that no longer exists and resetting that branch from "merged" to "open".
+# DEPLOYMENT_ENVIRONMENT below is the first line of defence.
 name: Register prototypes
 
 on:
@@ -97,6 +102,10 @@ jobs:
           COMMIT_SHA: ${{ github.event.deployment.sha }}
           COMMIT_AUTHOR: ${{ steps.commit.outputs.author }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # "Production" or "Preview". A merge commit belongs to the PR that
+          # merged it, so this is what keeps a production deploy from being
+          # filed under the feature branch it came from.
+          DEPLOYMENT_ENVIRONMENT: ${{ github.event.deployment.environment }}
         run: |
           node scripts/register-prototypes.mjs \
             --deployment-url "$DEPLOYMENT_URL" \
@@ -105,4 +114,5 @@ jobs:
             --commit-sha "$COMMIT_SHA" \
             --author "$COMMIT_AUTHOR" \
             --default-branch "$DEFAULT_BRANCH" \
-            --production-url "$PRODUCTION_URL"
+            --production-url "$PRODUCTION_URL" \
+            --environment "$DEPLOYMENT_ENVIRONMENT"
