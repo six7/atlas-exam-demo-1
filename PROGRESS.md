@@ -424,7 +424,17 @@ Those are exactly what the per-stage checks above are for.
 
 ---
 
-## Deployment Protection vs. sharing
+## Deployment Protection vs. sharing — RESOLVED 2026-08-24
+
+Preview authentication was turned off. Branch previews now return 200, so
+anyone can click a card through to an in-progress prototype. The section below
+is kept as the record of why.
+
+`VERCEL_AUTOMATION_BYPASS_SECRET` is now a no-op and can stay or go; the
+off-origin guard in the register script still protects against protection being
+re-enabled without anyone noticing.
+
+### Original writeup
 
 The hub is public at **https://atlas-exam-demo-1.vercel.app**. Prototypes on
 `main` are reachable there too, once `REGISTRY_PRODUCTION_URL` is set.
@@ -531,3 +541,40 @@ Consequences that shape the implementation:
   must-revalidate`. A long cache would defeat the entire point.
 
 It tags itself `data-screenshot-hide`, so CI screenshots still exclude it.
+
+---
+
+## Two things the hub got wrong, fixed 2026-08-24
+
+### Merged branches were piling up duplicates
+
+Every merged branch kept a full set of rows, so the hub reached **15 cards for
+3 actual prototypes** across four dead branches. The original reasoning — that
+deleting rows would cascade-delete their feedback — was right about the risk
+and wrong about the remedy.
+
+`update-prototype-status.mjs` now splits them when a PR closes: rows that carry
+feedback are marked merged/closed and **kept**, because the comments are the
+review history; rows with no feedback are **deleted**, because once a branch
+merges its prototypes live on the default branch and an identical silent card
+is pure duplication.
+
+Backfilled against the existing dead branches: 15 rows to 4, both comments
+intact.
+
+### Open branches were invisible
+
+Registration runs on `deployment_status`, so a branch only appears once it
+deploys *after* the workflow reached the default branch. Every branch already
+open at that point stayed invisible until someone pushed to it.
+
+The hub was therefore showing dead merged branches while hiding live open ones
+— exactly backwards. Four branches were affected, including an open PR with a
+prototype nobody could see.
+
+`backfill-prototypes.yml` is a `workflow_dispatch` that takes a branch name,
+finds its most recent successful deployment, and registers it — so an existing
+branch can be onboarded without an empty commit.
+
+**Run it once per invisible branch:**
+Actions → Backfill prototypes → Run workflow → enter the branch name.
