@@ -44,8 +44,24 @@ app/
   (shell)/
     layout.tsx                  ← app shell layout (Projects, Components, Tokens, Settings)
     projects/, components/, tokens/, settings/
-  actions/
-    prototype.ts                ← server action: creates new prototypes
+  api/
+    feedback/route.ts           ← reads/writes prototype feedback (RLS anon)
+
+lib/
+  supabase/                     ← clients: browser, server (anon), admin
+  registry/                     ← hub data layer + local fallback
+
+supabase/
+  migrations/                   ← SQL for the shared registry
+  verify-rls.sql                ← RLS self-check
+
+scripts/
+  register-prototypes.mjs       ← CI: screenshot + upsert into Supabase
+  update-prototype-status.mjs   ← CI: mark rows merged/closed
+  validate-registry.mjs         ← guards the registry.json contract
+  verify-registry.mjs           ← live end-to-end check of Supabase setup
+
+.github/workflows/              ← the two CI workflows above
 ```
 
 ### The rule: one folder per person
@@ -57,21 +73,178 @@ app/
 
 ---
 
+## The Shared Prototype Registry
+
+Prototypes are indexed centrally so the home page shows work from **every
+branch**, not just the branch a given deployment was built from.
+
+There are two halves, and the split is the important thing to understand:
+
+| | `src/prototypes/registry.json` | Supabase `prototypes` table |
+|---|---|---|
+| Role | **Authoring format** | **Shared index** |
+| Lives | In the repo, per branch | One central database |
+| Written by | You, or the "New prototype" flow | **CI only** |
+| Read by | The app, when Supabase is unset | The hub at `/` |
+
+### The two rules
+
+1. **`src/prototypes/registry.json` is the only registry file an agent edits.**
+   Creating a prototype means adding an entry there and creating the folder.
+   Nothing else.
+
+2. **Never write to Supabase from application code or as an agent.**
+   The `prototypes` table is populated exclusively by
+   `.github/workflows/register-prototypes.yml` after a successful Vercel
+   deployment. Do not add a server action, route handler, script, or migration
+   that inserts, updates, or deletes prototype rows.
+
+This is enforced, not just asked for:
+
+- Row Level Security grants `anon` **SELECT only** on `prototypes`. Writes
+  require a secret key.
+- The secret key is deliberately **not set on Vercel**, so a page that tried to
+  write would fail at runtime rather than quietly succeed.
+- `lib/supabase/admin.ts` is the only module holding a write-capable client,
+  and it is for CI and local scripts. Importing it from `app/` is a bug.
+
+If you think a prototype needs to write to the registry, the change belongs in
+`scripts/register-prototypes.mjs`, not in the app.
+
+### What CI fills in
+
+On every successful deployment, for each entry in `registry.json`, CI records
+`preview_url`, `screenshot_url` (a 1280x800 capture), `commit_sha`, `author`,
+`pr_number`, and `status`, keyed on `(repo, branch, slug)`. Entries removed
+from `registry.json` have their rows deleted, so the hub stays honest.
+
+You do not need to do any of this by hand. Add the entry, push, and the
+prototype appears on the hub.
+
+### Feedback
+
+Anyone can leave comments through the floating **Feedback** button, or by
+pressing **C** to attach a comment to a specific element — which then shows as
+a pin on the page. Comments post through `app/api/feedback/route.ts` (never
+straight from the client) and are readable on the hub cards.
+
+The overlay is **not** bundled with the prototype. It ships as
+`public/feedback.js` from the production deployment and every prototype loads
+it from there (`NEXT_PUBLIC_FEEDBACK_ORIGIN`), so old prototypes pick up
+improvements without being rebuilt. That is why it is plain dependency-free JS
+in a shadow root rather than a React component — it has to run inside arbitrary
+prototypes built from arbitrary branches.
+
+**Make anchors stable where feedback matters.** A comment's selector is
+generated from the DOM (`body > div:nth-of-type(2) > main > …`), so it breaks
+when you restructure around it — the comment survives, shown as "(gone)" with
+the element's captured label, but the pin disappears. The overlay checks
+`data-feedback-id` first, so give anything you expect sustained feedback on a
+stable handle:
+
+```tsx
+<section data-feedback-id="activity-feed">
+```
+
+Chrome that should not appear in CI screenshots is marked
+`data-screenshot-hide`. Add that attribute to anything you introduce that
+floats above a prototype.
+
+### Running without Supabase
+
+If `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are
+unset, the hub falls back to reading `registry.json` and says so on screen. The
+repo stays fully usable standalone — so never gate prototype work on having
+Supabase configured.
+
+### API keys
+
+Supabase replaced the legacy JWT keys (`anon` / `service_role`) with
+**publishable** (`sb_publishable_…`) and **secret** (`sb_secret_…`) keys; the
+legacy ones are deprecated at the end of 2026. The code reads the new variable
+names and falls back to the legacy ones, so either generation works:
+
+| Role | New | Legacy fallback |
+|---|---|---|
+| Browser / server reads | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| CI writes | `SUPABASE_SECRET_KEY` | `SUPABASE_SERVICE_ROLE_KEY` |
+
+A publishable key resolves to the `anon` Postgres role and a secret key to
+`service_role`, so **the RLS policies are the same for both** — migrating keys
+needs no schema change. One difference matters if you write a raw REST call:
+new-style keys must be sent on the `apikey` header only, never as
+`Authorization: Bearer`. `scripts/lib/supabase-keys.mjs` handles that;
+`supabase-js` handles it for you.
+
+See `PROGRESS.md` for setup and validation steps, and `.env.example` for the
+variables. `docs/prototype-guide.html` is the version to hand to people who
+just want to use the thing, and `PROMPT.md` is a spec for rebuilding this
+system in another repo.
+
+---
+
 ### Creating a New Prototype
 
-### Via the UI (recommended)
+### If you are an agent handed a "New prototype" prompt
 
-1. Navigate to `/` (the home page) in the running app.
+The hub's **New prototype** dialog produces a prompt that looks like this:
+
+```
+New prototype for this repo — see AGENTS.md for how to create one.
+
+  id           pricing-page
+  name         Pricing Page
+  author       Jan Six
+  description  Three pricing tiers with a monthly/annual toggle.
+  createdAt    2026-08-24
+
+<what the author wants built, in their words>
+```
+
+It carries the author's brief and the registry metadata, and deliberately
+nothing else — the procedure is here so it does not have to be repeated in
+every prompt. When you receive one:
+
+1. Create `src/prototypes/<id>/index.tsx` with a single default export.
+2. Add exactly those five fields as a new entry in the `prototypes` array of
+   `src/prototypes/registry.json`. Use the values given; do not invent your own
+   id or date.
+3. Build what the brief asks for, using the design tokens in `app/tokens.css`
+   (`var(--color-*)`, never hardcoded hex) and the shared components in
+   `src/components/ui/`.
+4. Run `npm run validate:registry` and make sure it passes.
+5. Run `npm run dev` and confirm `/prototypes/<id>` renders.
+
+Do not write to Supabase, and do not add a row by hand — CI registers the
+prototype when the branch is pushed and deployed.
+
+### Via the hub (recommended)
+
+1. Open `/` — locally or on the deployed hub, either works.
 2. Click **"New prototype"**.
-3. Fill in: name, your name, description.
-4. Click **"Create prototype"**.
+3. Fill in the name, your name, and **what it should do** — the last is a free
+   prompt, passed to the agent as written.
+4. Pick your agent: **Claude Code**, **GitHub Copilot**, or **Codex**.
+5. Use the deep link or the clone commands.
 
-This automatically:
-- Creates `src/prototypes/[slug]/index.tsx` with a scaffold component
-- Adds an entry to `src/prototypes/registry.json`
-- Redirects you to the new prototype page
+The dialog does not create anything. It composes the prompt above: your brief
+plus the registry metadata. Creating a prototype means writing into a git
+checkout, which is local work — so the hub hands it off rather than pretending
+to do it server-side.
 
-The dev server will hot-reload the new file immediately.
+The deep links differ, and the dialog says so rather than implying otherwise:
+
+| Tool | Opens |
+|---|---|
+| Claude Code | the **desktop app** (`claude://code/new`), with a link for a terminal session (`claude-cli://open`) instead |
+| GitHub Copilot | the **Copilot app** (`ghapp://session/new`), via GitHub's hosted launcher |
+| Codex | no deep link exists — clone commands only |
+
+> This replaced a server action that wrote to the filesystem. It worked locally
+> and failed on every deployment, because a serverless instance has no checkout
+> to write into. Don't reintroduce that pattern.
+
+The dev server hot-reloads the new file immediately.
 
 ### Manually
 
@@ -114,7 +287,19 @@ export default function MyFeature() {
 }
 ```
 
-That's it. The prototype is automatically discovered at runtime — no other files need to be changed.
+Then check it:
+
+```bash
+npm run validate:registry
+```
+
+All five fields are required, `id` must be kebab-case and match the folder
+name, and every entry needs `src/prototypes/<id>/index.tsx`. The same check
+runs on every pull request and again before CI registers anything, so a
+malformed entry fails there rather than becoming a broken card on the hub.
+`src/prototypes/registry.schema.json` gives editors the same rules inline.
+
+That's it. The prototype is automatically discovered at runtime — no other files need to be changed. In particular, **do not** add a row to Supabase by hand; CI does that on the next successful deployment.
 
 ---
 
@@ -274,17 +459,27 @@ After adding, apply our design tokens by ensuring the component uses `border-bor
 | `src/components/ui/` | shadcn primitives + InputField — do not edit directly |
 | `src/components/AppShell/` | Shared shell components — discuss changes |
 | `src/prototypes/[your-id]/` | Yours — edit freely |
-| `src/prototypes/registry.json` | Auto-managed by the prototype creator |
+| `src/prototypes/registry.json` | The authoring source of truth — validated by `npm run validate:registry` |
+| Supabase `prototypes` table | **CI only** — never written from app code or by an agent |
+| `lib/supabase/`, `lib/registry/` | Shared registry plumbing — discuss changes |
+| `scripts/*.mjs`, `.github/workflows/` | CI registration — the only place registry writes belong |
 | `DESIGN.md` | Brand guidelines — reference before building |
 
 ---
 
 ## Prototype Lifecycle
 
-1. **Create** — use the UI button or manually follow the steps above
+1. **Create** — use the UI button or manually follow the steps above. Writes locally only.
 2. **Build** — iterate freely in your folder, using shared tokens and components
-3. **Share** — share the URL `/prototypes/[your-id]` with the team for review
-4. **Promote** — if a prototype becomes production-ready, extract it into the shared component layer with a PR
+3. **Push** — open a PR. Once Vercel deploys, CI screenshots the prototype and
+   registers it, and it appears on the shared hub at `/` for everyone.
+4. **Review** — teammates leave comments via the Feedback button, readable on
+   the hub without opening each prototype
+5. **Promote** — if a prototype becomes production-ready, extract it into the shared component layer with a PR
+
+Closing the PR marks the branch's rows `merged` or `closed`, which regroups
+them on the hub. Deleting an entry from `registry.json` removes its row on the
+next deployment.
 
 ---
 

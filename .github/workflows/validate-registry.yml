@@ -1,0 +1,34 @@
+# Fails a pull request that adds a malformed prototype entry.
+#
+# registry.json is the authoring contract: CI mirrors it into the shared index
+# and the hub renders whatever is in it. A missing author or a slug that does
+# not match its folder produces a broken card nobody owns — cheaper to catch
+# here than to notice on the hub days later.
+name: Validate registry
+
+on:
+  pull_request:
+    paths:
+      - "src/prototypes/**"
+      - "scripts/validate-registry.mjs"
+      - ".github/workflows/validate-registry.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/prototypes/**"
+
+jobs:
+  validate:
+    name: Check registry.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No install step: the validator is dependency-free by design, so this
+      # check stays fast enough to be useful on every push.
+      - name: Validate
+        run: node scripts/validate-registry.mjs

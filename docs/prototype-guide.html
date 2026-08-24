@@ -1,0 +1,709 @@
+<title>Atlas Prototypes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+
+<style>
+  /* --- Atlas tokens (light) --------------------------------------- */
+  :root {
+    --bg:            #FFFFFF;
+    --bg-subtle:     #F6F8F1;
+    --bg-muted:      #EEF2E7;
+    --bg-brand:      #F5FDEB;
+    --bg-inverse:    #162F02;
+
+    --text-primary:  #162F02;
+    --text-secondary:#39462D;
+    --text-tertiary: #4F5E41;
+    --text-brand:    #5B9428;
+    --text-inverse:  #FFFFFF;
+
+    --border:        #DDE5D1;
+    --border-strong: #C4D1B3;
+
+    --brand:         #73BF33;
+    --danger:        #A63B29;
+    --warning:       #A46F18;
+
+    --shadow-sm: 0 1px 3px 0 rgba(22,47,2,.06), 0 1px 2px -1px rgba(22,47,2,.10);
+
+    --sans: "Poppins", system-ui, -apple-system, sans-serif;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --measure: 68ch;
+  }
+
+  /* Dark, derived in the same hue family. Guarded so an explicit
+     light choice still wins on a dark OS. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:            #0E1706;
+      --bg-subtle:     #16240C;
+      --bg-muted:      #1D2E11;
+      --bg-brand:      #18280D;
+      --bg-inverse:    #E9F1E0;
+
+      --text-primary:  #E9F1E0;
+      --text-secondary:#C3D2B4;
+      --text-tertiary: #97A889;
+      --text-brand:    #A8E072;
+      --text-inverse:  #0E1706;
+
+      --border:        #2A3D1B;
+      --border-strong: #3B5228;
+
+      --brand:         #8FD455;
+      --danger:        #E08C7B;
+      --warning:       #DDAE5C;
+
+      --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.4), 0 1px 2px -1px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:            #0E1706;
+    --bg-subtle:     #16240C;
+    --bg-muted:      #1D2E11;
+    --bg-brand:      #18280D;
+    --bg-inverse:    #E9F1E0;
+
+    --text-primary:  #E9F1E0;
+    --text-secondary:#C3D2B4;
+    --text-tertiary: #97A889;
+    --text-brand:    #A8E072;
+    --text-inverse:  #0E1706;
+
+    --border:        #2A3D1B;
+    --border-strong: #3B5228;
+
+    --brand:         #8FD455;
+    --danger:        #E08C7B;
+    --warning:       #DDAE5C;
+
+    --shadow-sm: 0 1px 3px 0 rgba(0,0,0,.4), 0 1px 2px -1px rgba(0,0,0,.5);
+  }
+
+  /* --- Base ------------------------------------------------------- */
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-secondary);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 72px 28px 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  .col { max-width: var(--measure); }
+
+  a { color: var(--text-brand); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  h1, h2, h3 {
+    color: var(--text-primary);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 { font-size: clamp(30px, 4.4vw, 42px); line-height: 1.12; }
+  h2 { font-size: 21px; line-height: 1.25; }
+  h3 { font-size: 15px; line-height: 1.35; font-weight: 600; }
+  p  { margin: 0; }
+
+  code, .mono { font-family: var(--mono); font-size: 0.875em; }
+
+  p code, li code, td code, h3 code {
+    background: var(--bg-muted);
+    color: var(--text-primary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* --- Header ----------------------------------------------------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 0 0 14px;
+  }
+  .lede {
+    font-size: 18px;
+    color: var(--text-tertiary);
+    margin-top: 16px;
+    max-width: 56ch;
+  }
+
+  /* --- The rule --------------------------------------------------- */
+  .rule-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 22px 24px;
+    background: var(--bg-brand);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--brand);
+    border-radius: 12px;
+  }
+  .rule-card .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-brand);
+  }
+  .rule-card p { color: var(--text-primary); font-size: 17px; }
+  .rule-card .sub { color: var(--text-tertiary); font-size: 15px; }
+
+  /* --- Sections --------------------------------------------------- */
+  section { display: flex; flex-direction: column; gap: 18px; }
+
+  .head { display: flex; align-items: baseline; gap: 12px; }
+  .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--brand);
+    padding-top: 2px;
+    flex: none;
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+
+  /* --- Figure ----------------------------------------------------- */
+  figure { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  .scroll-x { overflow-x: auto; }
+  figure svg { display: block; min-width: 720px; width: 100%; height: auto; }
+  figcaption {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    max-width: 62ch;
+  }
+
+  /* --- Code ------------------------------------------------------- */
+  pre {
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text-primary);
+  }
+  pre .c { color: var(--text-tertiary); }
+
+  /* --- Note ------------------------------------------------------- */
+  .note {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14.5px;
+  }
+  .note .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--warning);
+    flex: none;
+    padding-top: 3px;
+  }
+  .note p { color: var(--text-secondary); }
+
+  /* --- Lists ------------------------------------------------------ */
+  ul.plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  ul.plain > li { display: flex; gap: 11px; align-items: flex-start; }
+  ul.plain > li::before {
+    content: "";
+    flex: none;
+    width: 5px; height: 5px;
+    margin-top: 11px;
+    border-radius: 50%;
+    background: var(--brand);
+  }
+  ul.plain strong { color: var(--text-primary); font-weight: 500; }
+
+  /* --- Table ------------------------------------------------------ */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    min-width: 560px;
+  }
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 0 16px 10px 0;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  td {
+    padding: 13px 16px 13px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text-secondary);
+  }
+  td:first-child { color: var(--text-primary); width: 38%; }
+  tr:last-child td { border-bottom: none; }
+
+  /* --- Footer ----------------------------------------------------- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+    font-size: 14px;
+    color: var(--text-tertiary);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  hr.div {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 0;
+  }
+
+  @media (max-width: 620px) {
+    .page { padding: 48px 20px 88px; gap: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="col">
+    <p class="eyebrow">Atlas &middot; Prototype environment</p>
+    <h1>Every prototype, from every branch, in one place</h1>
+    <p class="lede">
+      Build in your own folder, push, and it shows up for the whole team &mdash;
+      with a screenshot and somewhere to leave comments. Here is the whole
+      workflow.
+    </p>
+  </header>
+
+  <div class="rule-card col">
+    <span class="kicker">The one thing to understand</span>
+    <p>You edit <code>registry.json</code>. CI fills Supabase. The hub reads Supabase.</p>
+    <p class="sub">
+      Nothing else is asked of you &mdash; and nothing should write to Supabase by
+      hand, from a prototype, or from a script.
+    </p>
+  </div>
+
+  <figure>
+    <div class="scroll-x">
+      <svg viewBox="0 0 960 372" role="img"
+           aria-label="You edit registry.json and push. Vercel deploys, then CI screenshots the prototype and writes a row into Supabase. The hub reads Supabase, and the Feedback button writes comments into it."
+           fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <g stroke="currentColor" color="var(--text-tertiary)">
+
+          <!-- -- Row A: the pipeline -- -->
+          <!-- 1. registry.json &mdash; the only thing you touch -->
+          <rect x="33" y="28" width="180" height="60" rx="9"
+                fill="var(--bg-brand)" stroke="var(--brand)" stroke-width="1.5"/>
+          <text x="123" y="52" text-anchor="middle" font-family="Geist Mono, monospace"
+                font-size="13" fill="var(--text-primary)" stroke="none">registry.json</text>
+          <text x="123" y="70" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-brand)" stroke="none">you edit this</text>
+
+          <!-- 2. push -->
+          <rect x="271" y="28" width="180" height="60" rx="9"
+                fill="var(--bg-subtle)" stroke="var(--border-strong)"/>
+          <text x="361" y="52" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="13" fill="var(--text-primary)" stroke="none">Push + open PR</text>
+          <text x="361" y="70" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-tertiary)" stroke="none">ordinary git</text>
+
+          <!-- 3. vercel -->
+          <rect x="509" y="28" width="180" height="60" rx="9"
+                fill="var(--bg-subtle)" stroke="var(--border-strong)"/>
+          <text x="599" y="52" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="13" fill="var(--text-primary)" stroke="none">Vercel deploys</text>
+          <text x="599" y="70" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-tertiary)" stroke="none">preview URL exists</text>
+
+          <!-- 4. ci -->
+          <rect x="747" y="28" width="180" height="60" rx="9"
+                fill="var(--bg-subtle)" stroke="var(--border-strong)"/>
+          <text x="837" y="52" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="13" fill="var(--text-primary)" stroke="none">CI registers</text>
+          <text x="837" y="70" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-tertiary)" stroke="none">screenshot + row</text>
+
+          <!-- pipeline arrows -->
+          <line x1="213" y1="58" x2="265" y2="58" marker-end="url(#ah)"/>
+          <line x1="451" y1="58" x2="503" y2="58" marker-end="url(#ah)"/>
+          <line x1="689" y1="58" x2="741" y2="58" marker-end="url(#ah)"/>
+
+          <text x="239" y="48" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10" fill="var(--text-tertiary)" stroke="none">commit</text>
+          <text x="477" y="48" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10" fill="var(--text-tertiary)" stroke="none">on push</text>
+          <text x="715" y="48" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10" fill="var(--text-brand)" stroke="none">on success</text>
+
+          <!-- -- Row B: the shared store -- -->
+          <rect x="280" y="176" width="400" height="64" rx="10"
+                fill="var(--bg-muted)" stroke="var(--border-strong)" stroke-width="1.5"/>
+          <text x="480" y="203" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="14" fill="var(--text-primary)" stroke="none">Supabase &mdash; the shared index</text>
+          <text x="480" y="222" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-tertiary)" stroke="none">one row per prototype, per branch</text>
+
+          <!-- CI writes down into Supabase -->
+          <polyline points="837,88 837,138 620,138 620,170" marker-end="url(#ah)"/>
+          <text x="730" y="130" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10" fill="var(--text-tertiary)" stroke="none">writes rows + screenshots</text>
+
+          <!-- -- Row C: who reads, who writes -- -->
+          <rect x="100" y="292" width="200" height="56" rx="9"
+                fill="var(--bg-subtle)" stroke="var(--border-strong)"/>
+          <text x="200" y="316" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="13" fill="var(--text-primary)" stroke="none">The hub</text>
+          <text x="200" y="333" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-tertiary)" stroke="none">everyone sees everything</text>
+
+          <rect x="660" y="292" width="200" height="56" rx="9"
+                fill="var(--bg-subtle)" stroke="var(--border-strong)"/>
+          <text x="760" y="316" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="13" fill="var(--text-primary)" stroke="none">Feedback button</text>
+          <text x="760" y="333" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10.5" fill="var(--text-tertiary)" stroke="none">inside every prototype</text>
+
+          <!-- Supabase &rarr; hub (read) -->
+          <polyline points="360,240 360,266 200,266 200,286" marker-end="url(#ah)"/>
+          <text x="272" y="259" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10" fill="var(--text-tertiary)" stroke="none">reads</text>
+
+          <!-- feedback &rarr; Supabase (write) -->
+          <polyline points="760,286 760,266 600,266 600,246" marker-end="url(#ah)"/>
+          <text x="682" y="259" text-anchor="middle" font-family="Poppins, sans-serif"
+                font-size="10" fill="var(--text-tertiary)" stroke="none">writes comments</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>
+      Your part stops at the push. Supabase sits in the middle: CI writes
+      prototypes into it, the Feedback button writes comments into it, and the
+      hub reads. Registration runs <em>after</em> the deploy succeeds, because
+      the screenshot needs a URL that exists.
+    </figcaption>
+  </figure>
+
+  <hr class="div">
+
+  <!-- ----------------------------------------------------------- -->
+  <section class="col">
+    <div class="head">
+      <span class="num">01</span>
+      <h2>Create it on your machine</h2>
+    </div>
+
+    <div class="stack">
+      <p>
+        Open the hub and click <strong>New prototype</strong>. Describe what
+        you are building, pick your agent &mdash; <strong>Claude Code</strong>,
+        <strong>GitHub Copilot</strong>, or <strong>Codex</strong> &mdash; and
+        it hands you a link, clone commands, and a prompt.
+      </p>
+      <p>
+        The hub does not create anything itself. The prompt names the exact
+        folder and the exact <code>registry.json</code> entry, and your agent
+        writes them in your checkout. That is the only place it can work:
+        creating a prototype means writing into git.
+      </p>
+
+      <div class="note">
+        <span class="tag">Heads up</span>
+        <p>
+          The deep links differ in what they actually do. Claude Code fills the
+          prompt in a clone you already have &mdash; it does not clone. Copilot
+          opens the Copilot app on this repo with the prompt. Codex has no deep
+          link. Clone commands are always offered, and always work.
+        </p>
+      </div>
+
+      <h3>Or by hand</h3>
+      <p>
+        Create <code>src/prototypes/my-feature/index.tsx</code> with a single
+        default export, then add an entry to
+        <code>src/prototypes/registry.json</code>:
+      </p>
+      <pre>{
+  "id": "my-feature",
+  "name": "My Feature",
+  "author": "Your Name",
+  "description": "What you're exploring.",
+  "createdAt": "2026-08-24"
+}</pre>
+      <p>
+        The <code>id</code> is the URL &mdash; this one lives at
+        <code>/prototypes/my-feature</code>. Then check it:
+      </p>
+      <pre>npm run validate:registry</pre>
+      <p>
+        All five fields are required, the id must match the folder name, and
+        the same check runs on your pull request. A half-filled entry becomes a
+        card on the hub that nobody owns, so it fails here instead.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <section class="col">
+    <div class="head">
+      <span class="num">02</span>
+      <h2>Share it</h2>
+    </div>
+
+    <div class="stack">
+      <p>Push the branch and open a pull request. That is the whole step.</p>
+
+      <pre>git checkout -b my-feature
+git add .
+git commit -m "Add my feature prototype"
+git push -u origin my-feature</pre>
+
+      <p>
+        Then wait. Registration runs <strong>after Vercel finishes
+        deploying</strong> &mdash; not when you push &mdash; because the screenshot needs a
+        live URL. In practice, a minute or two after the deploy goes green.
+      </p>
+      <p>
+        When it lands, your prototype is on the hub for everyone: screenshot,
+        your name, your branch, the PR number, and a link that opens it on
+        <em>your</em> branch's deployment rather than someone else's.
+      </p>
+      <p>
+        You do not run a command, and you do not touch Supabase.
+      </p>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- -->
+  <section class="col">
+    <div class="head">
+      <span class="num">03</span>
+      <h2>Read and leave comments</h2>
+    </div>
+
+    <div class="stack">
+      <p>
+        Open a prototype and press <strong>C</strong>. Hovering outlines
+        elements; clicking one attaches your comment to it. The comment then
+        shows as an avatar pin sitting on that element, so the next person sees
+        exactly what you meant.
+      </p>
+      <p>
+        The <strong>Feedback</strong> button, bottom right, does the same thing
+        and also opens the thread. Use it without picking an element when the
+        comment is about the page as a whole.
+      </p>
+
+      <ul class="plain">
+        <li>
+          <span><strong>The first time</strong>, it asks what to call you.
+          Stored in your browser only; you will not be asked again.</span>
+        </li>
+        <li>
+          <span><strong>On the hub</strong>, every card shows its comment count
+          and the element each comment points at &mdash; so you can review
+          everything without opening a single prototype.</span>
+        </li>
+        <li>
+          <span><strong>Comments stay with the branch</strong> they were left
+          on, so feedback on your work does not leak onto someone else&rsquo;s.</span>
+        </li>
+      </ul>
+
+      <div class="note">
+        <span class="tag">Anchors move</span>
+        <p>
+          Pins are attached by finding the element again in the page, so
+          restructuring your prototype can detach one. The comment is never
+          lost &mdash; it stays in the panel marked <em>(gone)</em> with a note
+          of what it pointed at. To make a pin survive edits, give the element a
+          stable handle: <code>data-feedback-id="activity-feed"</code>.
+        </p>
+      </div>
+
+      <p>
+        You never add the overlay to your prototype. It loads from the main
+        deployment, which also means improvements to commenting reach old
+        prototypes without anyone rebuilding them.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================== -->
+  <section class="col">
+    <div class="head">
+      <span class="num">04</span>
+      <h2>When the PR closes</h2>
+    </div>
+
+    <div class="stack">
+      <p>
+        Merged or closed, the prototype moves into <strong>Merged &amp;
+        closed</strong> at the bottom of the hub.
+      </p>
+      <p>
+        Nothing is deleted. The comments stay attached, so you can go back
+        months later and read what people actually said about it.
+      </p>
+    </div>
+  </section>
+
+  <hr class="div">
+
+  <!-- ----------------------------------------------------------- -->
+  <section class="col">
+    <h2>Removing a prototype</h2>
+    <p>
+      Delete its entry from <code>registry.json</code>, delete its folder, and
+      push. The row disappears from the hub on the next deploy &mdash; you do not need
+      to clean anything up by hand.
+    </p>
+  </section>
+
+  <!-- ----------------------------------------------------------- -->
+  <section class="col">
+    <h2>House rules</h2>
+    <ul class="plain">
+      <li>
+        <span><strong>Your folder is yours.</strong> Don't edit anyone else's
+        <code>src/prototypes/&lt;their-id&gt;/</code>.</span>
+      </li>
+      <li>
+        <span><strong>Never write to Supabase.</strong> Not from a prototype,
+        not from a script, not by hand. CI owns that table. If a prototype seems
+        to need a write, it doesn't &mdash; ask first.</span>
+      </li>
+      <li>
+        <span><strong>Use tokens, never hex.</strong>
+        <code>var(--color-text-primary)</code>, not <code>#162F02</code>. Dark
+        mode then works for free.</span>
+      </li>
+      <li>
+        <span><strong>Shared components are for using, not editing.</strong>
+        Need a different Button? Build your variant inside your own folder.</span>
+      </li>
+      <li>
+        <span><strong>Don&rsquo;t add the feedback overlay yourself.</strong>
+        Every prototype gets it automatically, from the main deployment. That is
+        how old prototypes keep getting improvements.</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- ----------------------------------------------------------- -->
+  <section>
+    <div class="col"><h2>When something looks wrong</h2></div>
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr><th>What you see</th><th>What it means</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Your prototype isn't on the hub</td>
+            <td>The deploy hasn't finished, or registration is still running.
+                Check the Actions tab on the PR.</td>
+          </tr>
+          <tr>
+            <td>Card says &ldquo;No screenshot yet&rdquo;</td>
+            <td>The screenshot failed. Open your prototype's URL directly &mdash; if
+                it errors there, fix that first and push again.</td>
+          </tr>
+          <tr>
+            <td>Feedback says &ldquo;not in the shared registry yet&rdquo;</td>
+            <td>Push and let a deploy finish. Comments attach to a registered
+                prototype, so there is nothing to attach to yet.</td>
+          </tr>
+          <tr>
+            <td>Hub shows a &ldquo;Local registry&rdquo; notice</td>
+            <td>Supabase isn't configured, so you're seeing only this branch.
+                Expected on your machine; wrong on a deployment.</td>
+          </tr>
+          <tr>
+            <td>A pin vanished after you edited the prototype</td>
+            <td>The element it pointed at moved. The comment is still there,
+                marked <em>(gone)</em>. Add
+                <code>data-feedback-id</code> to keep a pin across edits.</td>
+          </tr>
+          <tr>
+            <td>Your pull request fails on &ldquo;Check registry.json&rdquo;</td>
+            <td>Run <code>npm run validate:registry</code> &mdash; it names the
+                exact field or folder that is wrong.</td>
+          </tr>
+          <tr>
+            <td>Your name is wrong on comments</td>
+            <td>Clear <code>atlas.feedback.display-name</code> from
+                localStorage. It will ask again next time.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- -->
+  <section class="col">
+    <h2>Working offline from the shared hub</h2>
+    <p>
+      Without Supabase configured, everything still runs. The hub falls back to
+      your branch's <code>registry.json</code> and says so on screen. Build and
+      review your own prototype exactly as normal &mdash; it reaches the shared hub
+      when you push.
+    </p>
+  </section>
+
+  <footer class="col">
+    <p>
+      Deeper detail lives in <code>AGENTS.md</code> and <code>CLAUDE.md</code>
+      at the repo root. Brand and token reference is in <code>DESIGN.md</code>.
+    </p>
+    <p>
+      Something here wrong or unclear? It is worth fixing for the next person &mdash;
+      say so.
+    </p>
+  </footer>
+
+</div>
