@@ -202,16 +202,14 @@ so adding that secret instead works if the project is still on legacy keys.
 - [x] CI screenshots hide the Leva panel and the feedback overlay
       (anything marked `data-screenshot-hide`)
 
-### ⚠️ Read this before validating
+### ⚠️ Correction
 
-`deployment_status` workflows **always run the default branch's copy of the
-workflow file.** Until `.github/workflows/register-prototypes.yml` is merged
-into `main`, pushing this branch registers nothing — GitHub looks for the file
-on `main` and finds nothing to run. This is not a bug in the workflow; it is
-how the trigger works.
-
-So: merge first, then validate. The PR that adds the workflow cannot test
-itself.
+An earlier version of this doc claimed `deployment_status` workflows only run
+from the default branch's copy of the file, so the PR adding them could not
+test itself. **That was wrong.** `deployment` and `deployment_status` are not
+in the set of events that run from the default branch, and the workflow ran
+from the feature branch on the first push — which is how the two bugs below
+were caught before merge.
 
 ### ✅ Self-validation
 
@@ -316,8 +314,23 @@ the `feedback` table and appeared inline on the hub card.
 Note: that comment's `commit_sha` is `null`, which is correct — it comes from
 `VERCEL_GIT_COMMIT_SHA`, which only exists on a Vercel deployment.
 
-**Stage 3 — blocked on merge.** `deployment_status` runs the default branch's
-workflow file.
+**2026-08-24 — Stage 3, first CI run.** The workflow fired from the feature
+branch (see the correction above) and caught two bugs that could not surface
+locally:
+
+1. **Node 20 has no native WebSocket**, so `@supabase/supabase-js` threw inside
+   `createClient()`. Both workflows now pin Node 22. The run failed before any
+   write, so no bad rows were created.
+2. **Vercel set `deployment.ref` to the commit SHA, not the branch name.** The
+   log read `branch 45ae4ce7…`. Left alone this would have keyed every row by
+   SHA — upserts would never dedupe, pruning would never match, the hub could
+   not group by branch, and the PR-close workflow would never find the rows.
+   `resolveBranchAndPr()` now maps a SHA back to its branch via the GitHub API;
+   verified resolving `45ae4ce` → `claude/shared-prototype-registry-ef3253`,
+   and it picks up PR #5 which the old code missed entirely.
+
+Confirmed working in that run: the Vercel bypass secret (`bypass set`, all
+three screenshots captured from a protected preview).
 
 ---
 

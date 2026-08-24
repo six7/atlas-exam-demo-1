@@ -27,7 +27,9 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22+: @supabase/supabase-js needs a native WebSocket, which
+          # Node 20 does not have — createClient() throws without it.
+          node-version: 22
 
       # No `npm ci`: the script talks to PostgREST over plain fetch.
       - name: Update status

@@ -7,11 +7,13 @@
 # the workflow would fire alongside the build and have no URL to open.
 # `deployment_status` fires *after* Vercel finishes, and carries the URL.
 #
-# IMPORTANT — where this file has to live
-# ---------------------------------------
-# GitHub always runs the DEFAULT BRANCH's copy of a `deployment_status`
-# workflow. Editing it on a feature branch changes nothing until it is merged
-# into main. Until then, no branch gets registered.
+# BRANCH NAMES
+# ------------
+# `github.event.deployment.ref` is not reliably a branch name. Vercel creates
+# deployments against the commit SHA, so that is what arrives here. The script
+# resolves it back to a real branch via the GitHub API — see resolveBranchAndPr
+# in scripts/register-prototypes.mjs. Storing a SHA in `branch` would silently
+# break the (repo, branch, slug) key, pruning, hub grouping, and PR-close.
 name: Register prototypes
 
 on:
@@ -46,7 +48,9 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22+: @supabase/supabase-js needs a native WebSocket, which
+          # Node 20 does not have — createClient() throws without it.
+          node-version: 22
           cache: npm
 
       - name: Install dependencies

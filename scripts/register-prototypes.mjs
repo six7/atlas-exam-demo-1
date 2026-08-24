@@ -121,7 +121,7 @@ if (!deploymentUrl) fail("Missing --deployment-url.");
 const repo = args.repo ?? process.env.GITHUB_REPOSITORY;
 if (!repo) fail("Missing --repo (or GITHUB_REPOSITORY).");
 
-const branch = args.branch ?? process.env.BRANCH;
+let branch = args.branch ?? process.env.BRANCH;
 if (!branch) fail("Missing --branch.");
 
 const commitSha = args.commitSha ?? process.env.COMMIT_SHA ?? null;
@@ -170,32 +170,76 @@ function readRegistry() {
 }
 
 /* ------------------------------------------------------------------ */
-/* pull request lookup                                                 */
+/* branch and pull request resolution                                  */
 /* ------------------------------------------------------------------ */
 
-/** The open PR for this branch, if there is one. Best-effort. */
-async function findOpenPullRequest() {
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+
+async function github(pathname) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) return null;
-
-  const [owner] = repo.split("/");
-  const url =
-    `https://api.github.com/repos/${repo}/pulls` +
-    `?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}&per_page=1`;
-
   try {
-    const response = await fetch(url, {
+    const response = await fetch(`https://api.github.com${pathname}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
     });
-    if (!response.ok) return null;
-    const [pull] = await response.json();
-    return pull?.number ?? null;
+    return response.ok ? await response.json() : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolves the branch name and open PR number.
+ *
+ * `github.event.deployment.ref` is NOT reliably a branch name — Vercel creates
+ * deployments against the commit SHA, and that is what arrives here. Storing a
+ * SHA in `branch` would be quietly destructive: the (repo, branch, slug) key
+ * would change on every commit, so upserts would never dedupe, pruning would
+ * never match, the hub could not group by branch, and the PR-close workflow
+ * (which sees a real branch name) would never find these rows.
+ *
+ * So when the ref looks like a SHA we ask GitHub what it belongs to: the PR
+ * whose head it is, else the branch it is the head of.
+ */
+async function resolveBranchAndPr() {
+  const [owner] = repo.split("/");
+
+  if (SHA_PATTERN.test(branch)) {
+    const pulls = await github(`/repos/${repo}/commits/${branch}/pulls`);
+    const pull = Array.isArray(pulls)
+      ? pulls.find((p) => p.state === "open") ?? pulls[0]
+      : null;
+
+    if (pull?.head?.ref) {
+      return { branch: pull.head.ref, prNumber: pull.state === "open" ? pull.number : null };
+    }
+
+    const heads = await github(
+      `/repos/${repo}/commits/${branch}/branches-where-head`
+    );
+    if (Array.isArray(heads) && heads[0]?.name) {
+      return { branch: heads[0].name, prNumber: null };
+    }
+
+    console.warn(
+      `  ⚠ Could not resolve branch for commit ${branch.slice(0, 7)}; ` +
+        "registering against the SHA. Check that GITHUB_TOKEN is set."
+    );
+    return { branch, prNumber: null };
+  }
+
+  const pulls = await github(
+    `/repos/${repo}/pulls?state=open&per_page=1` +
+      `&head=${encodeURIComponent(`${owner}:${branch}`)}`
+  );
+  return {
+    branch,
+    prNumber: Array.isArray(pulls) ? pulls[0]?.number ?? null : null,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -279,7 +323,13 @@ async function captureScreenshots(entries) {
 
 async function main() {
   const entries = readRegistry();
-  const prNumber = await findOpenPullRequest();
+
+  const resolved = await resolveBranchAndPr();
+  if (resolved.branch !== branch) {
+    console.log(`  resolved   ${branch.slice(0, 7)} → branch "${resolved.branch}"`);
+  }
+  branch = resolved.branch;
+  const prNumber = resolved.prNumber;
 
   // main lives in the trunk; every other branch is in flight until its PR closes.
   const status = branch === defaultBranch ? "merged" : "open";
