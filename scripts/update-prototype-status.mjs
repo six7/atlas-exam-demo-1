@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 /**
- * Marks a branch's registry rows merged or closed when its PR closes.
+ * Retires a branch's registry rows when its PR closes.
+ *
+ * Rows that carry feedback are marked merged/closed and kept — the comments
+ * are the review history and deleting the row would cascade them away.
+ *
+ * Rows with no feedback are deleted. Once a branch is merged its prototypes
+ * live on the default branch, so an identical card from a dead branch is pure
+ * duplication: we watched the hub reach 15 cards for 3 actual prototypes
+ * across four merged branches, which is worse than useless.
  *
  * Run by `.github/workflows/prototype-pr-status.yml`.
  *
@@ -68,31 +76,74 @@ if (!secretKey) {
   fail(SECRET_KEY_HINT);
 }
 
-const query =
+const branchFilter =
   `repo=eq.${encodeURIComponent(repo)}` +
   `&branch=eq.${encodeURIComponent(branch)}`;
 
-const patch = { status };
-// Only set the PR number if we actually have one — never blank an existing value.
-if (prNumber) patch.pr_number = prNumber;
-
-const response = await fetch(`${supabaseUrl}/rest/v1/prototypes?${query}`, {
-  method: "PATCH",
-  // New-style secret keys must not be sent as a Bearer token; legacy JWT keys
-  // still need one. restHeaders() picks the right shape for the key in hand.
-  headers: restHeaders(secretKey, {
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-  }),
-  body: JSON.stringify(patch),
-});
-
-if (!response.ok) {
-  fail(`PATCH failed (${response.status}): ${await response.text()}`);
+// New-style secret keys must not be sent as a Bearer token; legacy JWT keys
+// still need one. restHeaders() picks the right shape for the key in hand.
+function headers(extra = {}) {
+  return restHeaders(secretKey, { "Content-Type": "application/json", ...extra });
 }
 
-const updated = await response.json();
-console.log(
-  `✓ Marked ${updated.length} row(s) "${status}" for ${repo} @ ${branch}` +
-    (updated.length ? `: ${updated.map((row) => row.slug).join(", ")}` : "")
+async function rest(path, init = {}) {
+  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    ...init,
+    headers: headers(init.headers ?? {}),
+  });
+  if (!response.ok) {
+    fail(`${init.method ?? "GET"} ${path} failed (${response.status}): ${await response.text()}`);
+  }
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+/* --- which of this branch's rows have a conversation attached? --------- */
+
+const rows = await rest(`prototypes?${branchFilter}&select=id,slug`);
+
+if (rows.length === 0) {
+  console.log(`✓ Nothing registered for ${repo} @ ${branch}.`);
+  process.exit(0);
+}
+
+const ids = rows.map((row) => row.id);
+const comments = await rest(
+  `feedback?prototype_id=in.(${ids.join(",")})&select=prototype_id`
 );
+const discussed = new Set(comments.map((c) => c.prototype_id));
+
+const keep = rows.filter((row) => discussed.has(row.id));
+const drop = rows.filter((row) => !discussed.has(row.id));
+
+/* --- keep the discussed ones, retired ---------------------------------- */
+
+if (keep.length > 0) {
+  const patch = { status };
+  // Only set the PR number if we have one — never blank an existing value.
+  if (prNumber) patch.pr_number = prNumber;
+
+  await rest(`prototypes?id=in.(${keep.map((r) => r.id).join(",")})`, {
+    method: "PATCH",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify(patch),
+  });
+  console.log(
+    `✓ Kept ${keep.length} row(s) as "${status}" (they have feedback): ` +
+      keep.map((r) => r.slug).join(", ")
+  );
+}
+
+/* --- delete the silent duplicates -------------------------------------- */
+
+if (drop.length > 0) {
+  await rest(`prototypes?id=in.(${drop.map((r) => r.id).join(",")})`, {
+    method: "DELETE",
+  });
+  console.log(
+    `✓ Removed ${drop.length} row(s) with no feedback ` +
+      `(they now live on the default branch): ${drop.map((r) => r.slug).join(", ")}`
+  );
+}
+
+console.log(`  ${repo} @ ${branch} — done.`);
