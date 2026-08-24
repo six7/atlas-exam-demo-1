@@ -59,6 +59,11 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # Never register a malformed registry — a bad row is harder to notice
+      # on the hub than a red check here.
+      - name: Validate registry
+        run: node scripts/validate-registry.mjs
+
       - name: Resolve commit author
         id: commit
         run: echo "author=$(git log -1 --pretty=%an)" >> "$GITHUB_OUTPUT"
@@ -81,6 +86,12 @@ jobs:
           # Passed through the environment, never interpolated into the shell —
           # branch and author names are attacker-controllable on a PR.
           DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          # The project's stable public domain, as a repository *variable*
+          # (Settings > Secrets and variables > Actions > Variables), e.g.
+          # https://atlas-exam-demo-1.vercel.app. Used as the link target on
+          # the default branch, because environment_url is an immutable hashed
+          # build URL that sits behind Vercel SSO on a protected project.
+          PRODUCTION_URL: ${{ vars.REGISTRY_PRODUCTION_URL }}
           REPO: ${{ github.repository }}
           BRANCH: ${{ github.event.deployment.ref }}
           COMMIT_SHA: ${{ github.event.deployment.sha }}
@@ -93,4 +104,5 @@ jobs:
             --branch "$BRANCH" \
             --commit-sha "$COMMIT_SHA" \
             --author "$COMMIT_AUTHOR" \
-            --default-branch "$DEFAULT_BRANCH"
+            --default-branch "$DEFAULT_BRANCH" \
+            --production-url "$PRODUCTION_URL"

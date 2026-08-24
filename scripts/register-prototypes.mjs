@@ -32,6 +32,13 @@
  *                                 SUPABASE_SERVICE_ROLE_KEY.
  *   GITHUB_TOKEN                  optional, used to find the PR
  *   GITHUB_REPOSITORY             e.g. "six7/atlas-exam-demo-1"
+ *   PRODUCTION_URL                optional but recommended — the project's
+ *                                 stable public domain, e.g.
+ *                                 https://atlas-exam-demo-1.vercel.app. Used
+ *                                 as the link target for the default branch
+ *                                 instead of the immutable per-deployment URL,
+ *                                 which is hashed and, on a protected project,
+ *                                 sits behind Vercel SSO.
  *   VERCEL_AUTOMATION_BYPASS_SECRET
  *                                 required when the Vercel project has
  *                                 Deployment Protection enabled — otherwise
@@ -136,6 +143,18 @@ const screenshotDir = args.screenshotDir ?? null;
  */
 const bypassSecret =
   args.bypassSecret ?? process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? null;
+
+/**
+ * The project's stable public domain. GitHub's deployment_status event only
+ * carries the immutable per-deployment URL (`…-9o8yim5eu-….vercel.app`), which
+ * is both ugly and — with Deployment Protection on — behind Vercel SSO. For
+ * the default branch we would rather link people at the real domain.
+ */
+const productionUrl = args.productionUrl
+  ? stripTrailingSlash(args.productionUrl)
+  : process.env.PRODUCTION_URL
+    ? stripTrailingSlash(process.env.PRODUCTION_URL)
+    : null;
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const secretKey = resolveSecretKey();
@@ -334,6 +353,12 @@ async function main() {
   // main lives in the trunk; every other branch is in flight until its PR closes.
   const status = branch === defaultBranch ? "merged" : "open";
 
+  // Screenshot the exact build that was deployed, but record the stable domain
+  // as the link target on the default branch — that is where people should
+  // land, and it is the one URL that is reliably public.
+  const linkUrl =
+    branch === defaultBranch && productionUrl ? productionUrl : deploymentUrl;
+
   console.log(`\nRegistering ${entries.length} prototype(s)`);
   console.log(`  repo       ${repo}`);
   console.log(`  branch     ${branch}`);
@@ -342,6 +367,7 @@ async function main() {
   console.log(`  pr         ${prNumber ?? "(none open)"}`);
   console.log(`  status     ${status}`);
   console.log(`  bypass     ${bypassSecret ? "set" : "(none)"}`);
+  if (linkUrl !== deploymentUrl) console.log(`  links to   ${linkUrl}`);
   if (dryRun) console.log("  MODE       dry run — nothing will be written\n");
   else console.log("");
 
@@ -423,7 +449,7 @@ async function main() {
       name: entry.name,
       description: entry.description,
       path: entry.path,
-      preview_url: deploymentUrl,
+      preview_url: linkUrl,
       screenshot_url: screenshotUrls.get(entry.slug) ?? null,
       commit_sha: commitSha,
       author: entry.author,

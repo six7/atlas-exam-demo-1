@@ -55,11 +55,26 @@ This is structural, not a convention:
 If a change genuinely needs to write to the registry, it belongs in
 `scripts/register-prototypes.mjs`.
 
-### The "New prototype" flow writes locally only
+### Rule 3 — every entry must pass validation
 
-`app/actions/prototype.ts` creates the folder and appends to `registry.json`.
-It does not contact Supabase, and must not start to. The prototype reaches the
-hub when CI registers the deployment, not when it is created.
+```bash
+npm run validate:registry
+```
+
+All five fields are required. `id` must be kebab-case and match the folder
+name, `createdAt` must be `YYYY-MM-DD`, ids must be unique, and every entry
+needs `src/prototypes/<id>/index.tsx`. The check runs on every pull request and
+again before CI registers anything. Run it after editing the registry.
+
+### The "New prototype" button composes a prompt
+
+It does not create files. It builds a prompt for Claude Code, Copilot, or Codex
+describing the folder and the exact registry entry to write, and the agent does
+the work locally.
+
+An earlier version was a server action that wrote to the filesystem. That
+worked locally and failed on every deployment — a serverless instance has no
+git checkout to write into. Do not reintroduce it.
 
 ### Feedback
 

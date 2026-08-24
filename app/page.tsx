@@ -1,7 +1,8 @@
-import { NewPrototypeForm } from "@/app/prototypes/NewPrototypeForm";
+import { StartPrototypeDialog } from "@/src/components/Hub/StartPrototypeDialog";
 import { ThemeToggle } from "@/src/components/AppShell/ThemeToggle";
 import { PrototypeHub } from "@/src/components/Hub/PrototypeHub";
 import { getHubData } from "@/lib/registry/hub";
+import { getDeploymentContext } from "@/lib/registry/deployment";
 
 /**
  * The shared hub.
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const data = await getHubData();
+  const { repo } = getDeploymentContext();
 
   return (
     <div
@@ -64,7 +66,7 @@ export default async function HomePage() {
               they live on.
             </p>
           </div>
-          <NewPrototypeForm />
+          <StartPrototypeDialog repo={repo} />
         </div>
 
         <PrototypeHub data={data} />
