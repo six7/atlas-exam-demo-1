@@ -51,7 +51,17 @@ To add the Atlas app shell to your prototype, import the shared AppShell compone
 
 Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`) to use the shared index. Leave them unset and the hub falls back to this branch's `registry.json`, so the repo runs standalone. Projects still on Supabase's legacy JWT keys can set `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead — both generations are accepted.
 
-Setup and validation steps: [`PROGRESS.md`](PROGRESS.md).
+Setup and validation steps: [`PROGRESS.md`](PROGRESS.md). A guide to hand to the team: [`docs/prototype-guide.html`](docs/prototype-guide.html).
+
+---
+
+## Reviewing and commenting
+
+Open any prototype and press **C**, or use the **Feedback** button. Pressing C lets you point at an element — hover to outline, click to attach — and the comment then shows as a pin on the page. Comments are readable on the hub cards too, so you can review everything without opening each prototype.
+
+The overlay ships from the production deployment (`public/feedback.js`) rather than being bundled into each prototype, so a prototype merged months ago picks up improvements without being rebuilt. That is why it is plain dependency-free JS in a shadow root: it has to run inside prototypes built from any branch, on any React version.
+
+Selectors are generated from the DOM and break when you restructure. Add `data-feedback-id="…"` to anything that should keep its pin across edits.
 
 ---
 
