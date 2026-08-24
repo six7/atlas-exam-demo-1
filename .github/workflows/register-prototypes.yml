@@ -1,0 +1,92 @@
+# Registers this branch's prototypes in the shared Supabase registry.
+#
+# WHY deployment_status AND NOT pull_request
+# ------------------------------------------
+# Screenshots are taken against the real Vercel preview, so the job cannot run
+# until that deployment exists and is live. On `pull_request` it does not yet:
+# the workflow would fire alongside the build and have no URL to open.
+# `deployment_status` fires *after* Vercel finishes, and carries the URL.
+#
+# IMPORTANT — where this file has to live
+# ---------------------------------------
+# GitHub always runs the DEFAULT BRANCH's copy of a `deployment_status`
+# workflow. Editing it on a feature branch changes nothing until it is merged
+# into main. Until then, no branch gets registered.
+name: Register prototypes
+
+on:
+  deployment_status:
+
+# One registration per branch. A newer deployment supersedes an in-flight run.
+concurrency:
+  group: register-prototypes-${{ github.event.deployment.ref }}
+  cancel-in-progress: true
+
+jobs:
+  register:
+    name: Screenshot and upsert
+    # Vercel reports pending/in_progress/error too; only a finished, successful
+    # deployment has a URL worth opening.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment_url != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Check out the deployed commit
+        uses: actions/checkout@v4
+        with:
+          # Not the branch tip: the branch may have moved on since the
+          # deployment, and registry.json must match what was deployed.
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Resolve commit author
+        id: commit
+        run: echo "author=$(git log -1 --pretty=%an)" >> "$GITHUB_OUTPUT"
+
+      - name: Register prototypes
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          # New-style secret key. The legacy variable is passed too, so a
+          # project still on `service_role` keeps working — the scripts prefer
+          # SUPABASE_SECRET_KEY and fall back. Add whichever your project uses.
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Used only to look up whether this branch has an open PR.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Required when the Vercel project has Deployment Protection on —
+          # without it every preview URL redirects to Vercel SSO and we would
+          # capture a login page. The script fails loudly rather than upload
+          # one, so an empty value here surfaces as a failed run, not junk.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          # Passed through the environment, never interpolated into the shell —
+          # branch and author names are attacker-controllable on a PR.
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.deployment.ref }}
+          COMMIT_SHA: ${{ github.event.deployment.sha }}
+          COMMIT_AUTHOR: ${{ steps.commit.outputs.author }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          node scripts/register-prototypes.mjs \
+            --deployment-url "$DEPLOYMENT_URL" \
+            --repo "$REPO" \
+            --branch "$BRANCH" \
+            --commit-sha "$COMMIT_SHA" \
+            --author "$COMMIT_AUTHOR" \
+            --default-branch "$DEFAULT_BRANCH"
