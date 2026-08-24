@@ -81,6 +81,23 @@ An earlier version was a server action that wrote to the filesystem. That
 worked locally and failed on every deployment — a serverless instance has no
 git checkout to write into. Do not reintroduce it.
 
+### Leva is per prototype, never global
+
+`leva` is for controls a prototype author adds to their **own** prototype —
+variants, states, feature flags. Nothing mounts it in `app/layout.tsx`, and a
+prototype that never calls `useControls` shows no panel.
+
+Do not add a global control panel, and do not wire Leva to design-system values
+— brand colour, radius, spacing, font size, dark mode. Those live in
+`app/tokens.css` and are shared by everyone; a panel writing them onto `<html>`
+retunes every prototype at once. To explore a token change, change the token.
+
+There was such a panel. It also owned a "Dark mode" switch, which it synced
+against `next-themes` in both directions — two effects in one commit, each
+correcting the other from a stale read, swapping values forever. That is what a
+theme strobing between light and dark looks like. Two controls over one piece of
+global state is the bug, not the sync code.
+
 ### Feedback
 
 The overlay is **not** bundled with prototypes. It ships as `public/feedback.js`

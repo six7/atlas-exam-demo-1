@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Poppins, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/src/components/AppShell/ThemeProvider";
-import { LevaControls } from "@/src/components/LevaControls";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -28,10 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="h-full">
-        <ThemeProvider>
-          {children}
-          <LevaControls />
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
