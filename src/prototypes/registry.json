@@ -21,6 +21,13 @@
       "author": "Jan Six",
       "description": "Exploring projects",
       "createdAt": "2026-04-12"
+    },
+    {
+      "id": "filter-prototype",
+      "name": "Filter prototype",
+      "author": "Jan Six",
+      "description": "People keep losing the filters they set up.",
+      "createdAt": "2026-08-25"
     }
   ]
 }
