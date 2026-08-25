@@ -21,6 +21,13 @@
       "author": "Jan Six",
       "description": "Exploring projects",
       "createdAt": "2026-04-12"
+    },
+    {
+      "id": "card-patterns",
+      "name": "Card patterns",
+      "author": "Jan Six",
+      "description": "Three content-first card variations with different density and hierarchy.",
+      "createdAt": "2026-08-25"
     }
   ]
 }
