@@ -367,9 +367,13 @@ function FilterButton({
 }) {
   const config = FILTERS[filterKey];
   const active = value !== undefined;
+  const addLabel =
+    menuId === "add-another-label"
+      ? `Add another ${config.label.toLowerCase()} filter`
+      : `Add ${config.label.toLowerCase()} filter`;
 
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <div
         className="inline-flex min-h-9 items-stretch overflow-hidden rounded-md border"
         style={{
@@ -379,17 +383,22 @@ function FilterButton({
       >
         <button
           type="button"
-          className="flex items-center gap-2 px-3 text-sm font-medium transition-transform duration-150 ease-out active:scale-[0.98]"
+          className={`flex items-center gap-2 whitespace-nowrap text-sm font-medium transition-transform duration-150 ease-out active:scale-[0.98] ${
+            active ? "px-3" : "size-9 justify-center px-0"
+          }`}
           style={{
             color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)",
           }}
+          aria-label={!active ? addLabel : undefined}
+          title={!active ? addLabel : undefined}
           aria-expanded={isOpen}
           onClick={() => onToggle(menuId)}
         >
-          {!active && <Plus className="size-3.5" aria-hidden="true" />}
-          <span style={{ color: active ? "var(--color-text-tertiary)" : undefined }}>
-            {config.label}
-          </span>
+          {!active ? (
+            <Plus className="size-3.5" aria-hidden="true" />
+          ) : (
+            <span style={{ color: "var(--color-text-tertiary)" }}>{config.label}</span>
+          )}
           {active && (
             <>
               <span aria-hidden="true" style={{ color: "var(--color-border-strong)" }}>
@@ -981,7 +990,7 @@ export default function FilterPrototype() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-nowrap items-center gap-2">
                 {FILTER_KEYS.flatMap((filterKey) => {
                   const matchingTokens = tokens
                     .map((token, index) => ({ token, index }))
